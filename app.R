@@ -3766,7 +3766,7 @@ server <- function(input, output, session) {
     )
 
     goal_trend <- goal_trend[goal_trend$Yes >= 0, ]
-
+# print(head(goal_trend))
     # Calculate the projected trend using polynomial regression (degree 2)
     # poly_model <- lm(Yes ~ poly(Days, 2, raw = TRUE), data = graph_data)
 
@@ -3780,7 +3780,8 @@ server <- function(input, output, session) {
       mutate(Yes_clean = ifelse(Yes < lower_bound | Yes > upper_bound, Smooth_Yes, Yes))
 
     # Use a more flexible regression model (GAM)
-    gam_model <- gam(Yes_clean ~ s(Days, k = 10), data = graph_data, method = "REML")
+    gam_model <- gam(Yes ~ s(Days, k = 10), data = graph_data, method = "REML")
+    # gam_model <- gam(Yes_clean ~ s(Days, k = 10), data = graph_data, method = "REML")
 
     # Evaluate the GAM model
     summary_gam <- summary(gam_model)
@@ -3798,8 +3799,10 @@ server <- function(input, output, session) {
     projected_trend <- data.frame(
       SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
       Yes = predict(gam_model, newdata = data.frame(Days = future_days))
-      # Yes = predict(poly_model, newdata = data.frame(Days = future_days))
     )
+
+# print(head(projected_trend))
+
     projected_trend <- projected_trend[projected_trend$SnapshotDate >= latest_date, ]
     projected_trend$Yes <- pmax(projected_trend$Yes, 0)
     projected_trend <- projected_trend[projected_trend$Yes > 0, ]
@@ -3809,8 +3812,10 @@ server <- function(input, output, session) {
 
     # Create the plot
     p <- ggplot() +
-      geom_line(data = graph_data, aes(x = SnapshotDate, y = Yes), color = "blue", linewidth = 1) +
-      geom_point(data = graph_data, aes(x = SnapshotDate, y = Yes), color = "blue", size = 2) +
+      geom_line(data = graph_data, aes(x = SnapshotDate, y = Yes_clean), color = "blue", linewidth = 1) +
+      geom_point(data = graph_data, aes(x = SnapshotDate, y = Yes_clean), color = "blue", size = 2) +
+      # geom_line(data = graph_data, aes(x = SnapshotDate, y = Yes), color = "blue", linewidth = 1) +
+      # geom_point(data = graph_data, aes(x = SnapshotDate, y = Yes), color = "blue", size = 2) +
       geom_line(data = goal_trend, aes(x = SnapshotDate, y = Yes), color = "purple", linetype = "dashed", linewidth = 1) +
       geom_line(data = projected_trend, aes(x = SnapshotDate, y = Yes), color = "#006400", linetype = "dashed", linewidth = 1) +
       theme_minimal() +
@@ -4314,6 +4319,7 @@ server <- function(input, output, session) {
   })
 
   output$goals_not_met_line_plot <- renderPlot({
+    req(input$aa_subs == "All Access Status History")
 
     graph_data <- summary_history_df() %>%
       select(SnapshotDate, `No/other`) %>%
