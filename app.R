@@ -456,6 +456,7 @@ ui <-
                           value = "aa_summaries",
                           title = "All Access",
                           tabsetPanel(
+                            id = "aa_subs",
                             type = "pills",
                             tabPanel(
                               id = "aa_area_countries",
@@ -498,15 +499,21 @@ ui <-
                                 ),
                                 column(width = 6,
                                   tabsetPanel(
+                                    id = "aa_plots",
                                     type = "pills",
                                     tabPanel(
-                                      title = "Goals Unmet, by month, with projections",
+                                      title = "Goals by chapters completed",
+                                      plotOutput("goals_chapters_remaining_line_plot")
+                                    ),
+                                    tabPanel(
+                                      title = "Goals Unmet, \\w projections",
                                       plotOutput("goals_not_met_line_plot")
                                     ),
                                     tabPanel(
-                                      title = "Goals met, by month",
+                                      title = "Goals met",
                                       plotOutput("goals_met_line_plot")
-                                    ),                                    tabPanel(
+                                    ),
+                                    tabPanel(
                                       title = "Goals Unmet vs Met, by year",
                                       plotOutput("goals_unmet_vs_met_plot")
                                     )
@@ -648,7 +655,7 @@ ui <-
                         column(width = 2,
                                uiOutput("btn_send_to_langMap")),
                         column(width = 2,
-                               uiOutput("btn_clear_reset_rt")),
+                               uiOutput("btn_clear_reset_rt"))
                       ),
                       hr(),
                       div(class = "dashboard-source_citations",
@@ -1113,7 +1120,7 @@ server <- function(input, output, session) {
     rename(`Field Name` = `Data.Element.Name`) %>%
     filter(`Field Name` != "[report menu group]", !is.na(Definition))
 
-  missing_SL_coords <- read.csv("data/assets/missing_SL_coords.csv") %>%
+  missing_SL_coords <<- read.csv("data/assets/missing_SL_coords.csv") %>%
     select(`Language.Code`, Latitude, Longitude) |>
     rename(`Language Code` = Language.Code)
 
@@ -1301,34 +1308,37 @@ server <- function(input, output, session) {
   # }) |> bindEvent(input$selected_snapshot)
 
   # print("misc transformation to main_rows")
-  main_rows <- main_rows |>
-    mutate(`Is Sign Language` = factor(`Is Sign Language`, levels = c("Yes", "No"))) %>%
-    mutate(`Is Remaining V2025 Need` = factor(`Is Remaining V2025 Need`, levels = c("Yes", "No"))) %>%
-    mutate(`On All Access List` = factor(`On All Access List`, levels = c("Yes", "No"))) %>%
-    # mutate(`In The Circle` = factor(`In The Circle`, levels = c("Yes", "No"))) %>%
-    mutate(`Translation Status` = as.factor(str_replace_na(.$`Translation Status`, replacement = "Not available"))) %>%
-    mutate(`All Access Goal` = as.factor(str_replace_na(.$`All Access Goal`, replacement = "Not available"))) %>%
-    left_join(missing_SL_coords) |>
-    mutate(`AAG chapters` = ifelse(`All Access Goal` == '25 Chapters',25,
-                                   ifelse(`All Access Goal` == 'NT/260 chapters',260,
-                                          ifelse(`All Access Goal` == 'Bible',1189,
-                                                 ifelse(`All Access Goal` == 'Two Bibles',2378,0))))) |>
-    # mutate(`DSI Eligibility` = if_else(`Language Code` %in% dsi_langs$`Language Code` &
-    #                                    `Country Code` %in% dsi_langs$`Country Code`, 'Yes', 'No') |>
-    #          as_factor()) |>
-    mutate(`AAG chapters remaining` = if_else(is.na(`All Access Status`) | str_detect(`All Access Status`, "Goal Met"),
-                                              0, `AAG chapters`))
-  # print("done")
+  main_rows <- main_rows |> main_rows_transformations()
 
-  main_rows <- main_rows |>
-    rename(
-      POSIXct_date = `P O S I Xct_date`,
-      `Active OBT` = `Active O B T`,
-      `Prior AA Status` = `Prior A A Status`,
-      `Has OBT Engagements` = `Has O B T Engagements`,
-      `IllumiNations Region` = `Illumi Nations Region`,
-      `IllumiNations Group Name` = `Illumi Nations Group Name`
-    )
+  # *** moved these to utils.R *** mbj
+  # main_rows <- main_rows |>
+  #   mutate(`Is Sign Language` = factor(`Is Sign Language`, levels = c("Yes", "No"))) %>%
+  #   mutate(`Is Remaining V2025 Need` = factor(`Is Remaining V2025 Need`, levels = c("Yes", "No"))) %>%
+  #   mutate(`On All Access List` = factor(`On All Access List`, levels = c("Yes", "No"))) %>%
+  #   # mutate(`In The Circle` = factor(`In The Circle`, levels = c("Yes", "No"))) %>%
+  #   mutate(`Translation Status` = as.factor(str_replace_na(.$`Translation Status`, replacement = "Not available"))) %>%
+  #   mutate(`All Access Goal` = as.factor(str_replace_na(.$`All Access Goal`, replacement = "Not available"))) %>%
+  #   left_join(missing_SL_coords) |>
+  #   mutate(`AAG chapters` = ifelse(`All Access Goal` == '25 Chapters',25,
+  #                                  ifelse(`All Access Goal` == 'NT/260 chapters',260,
+  #                                         ifelse(`All Access Goal` == 'Bible',1189,
+  #                                                ifelse(`All Access Goal` == 'Two Bibles',2378,0))))) |>
+  #   # mutate(`DSI Eligibility` = if_else(`Language Code` %in% dsi_langs$`Language Code` &
+  #   #                                    `Country Code` %in% dsi_langs$`Country Code`, 'Yes', 'No') |>
+  #   #          as_factor()) |>
+  #   mutate(`AAG chapters remaining` = if_else(is.na(`All Access Status`) | str_detect(`All Access Status`, "Goal Met"),
+  #                                             0, `AAG chapters`))
+  # # print("done")
+  #
+  # main_rows <- main_rows |>
+  #   rename(
+  #     POSIXct_date = `P O S I Xct_date`,
+  #     `Active OBT` = `Active O B T`,
+  #     `Prior AA Status` = `Prior A A Status`,
+  #     `Has OBT Engagements` = `Has O B T Engagements`,
+  #     `IllumiNations Region` = `Illumi Nations Region`,
+  #     `IllumiNations Group Name` = `Illumi Nations Group Name`
+  #   )
 
   #################################################################################
   # 2024 04 30 Morris Johnson
@@ -4311,15 +4321,18 @@ server <- function(input, output, session) {
       geom_line(color = "blue") +
       geom_point(color = "blue") +
       theme_minimal() +
-      labs(title = "Goals Met Over Time",
-           x = "Date",
+      labs(x = "Month",
            y = "Goals Met") +
-      scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
+      scale_y_continuous(limits = c(0, max(graph_data$No, na.rm = TRUE) * 1.2)) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
+      # scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+      # theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
 
   output$goals_not_met_line_plot <- renderPlot({
-    req(input$aa_subs == "All Access Status History")
+    # req(input$aa_subs == "All Access Status History")
 
     graph_data <- summary_history_df() %>%
       select(SnapshotDate, `No/other`) %>%
@@ -4394,8 +4407,7 @@ server <- function(input, output, session) {
       geom_line(data = goal_trend, aes(x = SnapshotDate, y = No), color = "purple", linetype = "dashed", linewidth = 1) +
       geom_line(data = projected_trend, aes(x = SnapshotDate, y = No), color = "#006400", linetype = "dashed", linewidth = 1) +
       theme_minimal() +
-      labs(title = "Goals Unmet Over Time with Pace Projections",
-           x = "Date",
+      labs(x = "Month",
            y = "Goals Unmet") +
       scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
       scale_y_continuous(limits = c(0, max(graph_data$No, na.rm = TRUE) * 1.2)) +
@@ -4451,6 +4463,194 @@ server <- function(input, output, session) {
     annotation_metrics <- data.frame(
       x = min(graph_data$SnapshotDate),
       y = max(graph_data$No, na.rm = TRUE) * 1.1,
+      label = sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f", dev_explained * 100, r_sq, gcv)
+    )
+
+    p <- p +
+      geom_text(data = annotation_metrics, aes(x = x, y = y, label = label),
+                hjust = 0, vjust = 1, size = 3.5, color = "darkgray")
+    p
+
+
+  })
+
+  summary_aa_plot_df <- reactive({
+    req(input$selected_country_scope_aa)
+    curr_panel <- input$aa_plots
+
+    ds_name <-  "pb_main_ds"
+
+    # *** set vars for country scope, first and last snapshot based on the current panel displayed
+    country_scope <- input$selected_country_scope_aa
+    first_snapshot <- input$selected_first_snapshot_aa
+    last_snapshot <- input$selected_last_snapshot_aa
+
+    source <- paste0("data/datasets/", ds_name)
+    ds <- arrow::open_dataset(source, format = "parquet")
+
+    df <- ds %>%
+      (function(x) {
+        if(country_scope == "Selected only") {
+          x <- x %>% dplyr::filter(`Country Code` %in% input$selected_countries)
+        }
+        if(!is.null(first_snapshot)) {
+          x <- x %>% dplyr::filter(SnapshotDate >= first_snapshot & SnapshotDate <= last_snapshot)
+        }
+        return(x)
+      }) %>%
+      dplyr::select(SnapshotDate, month, year, `Country Code`, `Language Code`, `On All Access List`,
+             `All Access Status`, `All Access Goal`, `A A Goal Met`, `Prior A A Status`) |>
+      dplyr::collect() |>
+      aa_hist_transformations()
+
+    df <- df |> get_aa_chapters_df()
+    # df <- df |> get_aa_chapters_df()
+
+    # df <- if(curr_panel == "AA Goals by chapters completed") {
+    #   get_aa_chapters_df(df)
+    # } else {
+    #   get_aa_history_df(df)
+    # }
+
+    return(df)
+  })
+
+  output$goals_chapters_remaining_line_plot <- renderPlot({
+
+    graph_data <- summary_aa_plot_df() %>%
+      # graph_data <- summary_history_df() %>%
+      select(SnapshotDate, `remaining_chapters`) %>%
+      mutate(SnapshotDate = as.Date(SnapshotDate),
+             Days = as.numeric(SnapshotDate - min(SnapshotDate)))
+    # print("str for graph_data in chapter plot output code")
+    # str(graph_data)
+
+    # Apply smoothing to the historical data using custom function
+    graph_data <- graph_data %>%
+      mutate(Smooth_remaining_chapters = rollmean_custom(remaining_chapters, k = 3))
+
+    # Get the latest date and value
+    latest_date <- max(graph_data$SnapshotDate)
+    latest_value <- graph_data$remaining_chapters[graph_data$SnapshotDate == latest_date]
+
+    # Calculate the target date (December 31, 2033)
+    target_date <- as.Date("2033-12-31")
+
+    # Create data for the goal trend line
+    days_to_target <- as.numeric(target_date - latest_date)
+    daily_reduction <- latest_value / days_to_target
+    monthly_reduction <- (daily_reduction * 30) %>% as.integer()
+
+    goal_trend <- data.frame(
+      SnapshotDate = seq(latest_date, target_date, by = "day"),
+      remaining_chapters = seq(latest_value, 0, by = -daily_reduction)
+    )
+
+    goal_trend <- goal_trend[goal_trend$remaining_chapters >= 0, ]
+
+    # Handle outliers
+    Q1 <- quantile(graph_data$remaining_chapters, 0.25, na.rm = TRUE)
+    Q3 <- quantile(graph_data$remaining_chapters, 0.75, na.rm = TRUE)
+    IQR <- Q3 - Q1
+    lower_bound <- Q1 - 1.5 * IQR
+    upper_bound <- Q3 + 1.5 * IQR
+    graph_data <- graph_data %>%
+      mutate(remaining_chapters_clean = ifelse(remaining_chapters < lower_bound |
+                                                 remaining_chapters > upper_bound,
+                                               Smooth_remaining_chapters,
+                                               remaining_chapters))
+
+    # Use a more flexible regression model (GAM)
+    gam_model <- gam(remaining_chapters_clean ~ s(Days, k = 10), data = graph_data, method = "REML")
+
+    # Evaluate the GAM model
+    summary_gam <- summary(gam_model)
+    dev_explained <- summary_gam$dev.expl
+    r_sq <- summary_gam$r.sq
+    gcv <- summary_gam$sp.criterion
+
+    # Print model evaluation metrics
+    # print(paste("Deviance explained:", round(dev_explained, 4)))
+    # print(paste("R-squared:", round(r_sq, 4)))
+    # print(paste("GCV score:", round(gcv, 4)))
+
+    # Project the trend
+    future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
+    projected_trend <- data.frame(
+      SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+      remaining_chapters = predict(gam_model, newdata = data.frame(Days = future_days))
+    )
+
+    projected_trend <- projected_trend[projected_trend$SnapshotDate >= latest_date, ]
+    projected_trend$remaining_chapters <- pmax(projected_trend$remaining_chapters, 0)
+    projected_trend <- projected_trend[projected_trend$remaining_chapters > 0, ]
+
+    # Determine the maximum date for x-axis
+    max_date <- max(target_date, max(projected_trend$SnapshotDate))
+
+    # Create the plot
+    p <- ggplot() +
+      geom_line(data = graph_data, aes(x = SnapshotDate, y = remaining_chapters_clean), color = "blue", size = 1) +
+      geom_point(data = graph_data, aes(x = SnapshotDate, y = remaining_chapters_clean), color = "blue", size = 2) +
+      geom_line(data = goal_trend, aes(x = SnapshotDate, y = remaining_chapters), color = "purple", linetype = "dashed", size = 1) +
+      geom_line(data = projected_trend, aes(x = SnapshotDate, y = remaining_chapters), color = "#006400", linetype = "dashed", size = 1) +
+      theme_minimal() +
+      labs( x = "Month",
+            y = "Remaining chapters") +
+      scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
+      scale_y_continuous(limits = c(0, max(graph_data$remaining_chapters, na.rm = TRUE) * 1.2)) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
+
+    # Add annotations with improved positioning
+    max_y = max(graph_data$remaining_chapters, na.rm = TRUE) * 1.1
+    # max_y <- max(graph_data$`remaining_chapters`, na.rm = TRUE)
+    annotation_y_positions <- seq(max_y * .95, max_y * .68, length.out = 4)
+    # annotation_y_positions <- seq(max_y * .95, max_y * .65, length.out = 5)
+    # annotation_y_positions <- seq(max_y * .9, max_y * .7, length.out = 4)
+    # annotation_y_positions <- seq(max_y * 1.18, max_y * 1.06, length.out = 4)
+
+    annotations <- data.frame(
+      x = max_date,
+      y = annotation_y_positions,
+      label = c(
+        paste("Completion Target Date: Dec 31, 2033"),
+        paste("Latest Actual Data:", format(latest_date, "%b %d, %Y"), "-", latest_value, " goals unmet"),
+        # paste("Target completion:", format(max(goal_trend$SnapshotDate), "%b %d, %Y")),
+        # paste("Monthly pace required to reach target:", monthly_pace),
+        paste("Pace required to reach 2033:", monthly_reduction, "chapters completed each month"),
+        paste("Projected Data ends:", format(max(projected_trend$SnapshotDate), "%b %d, %Y"))
+      ),
+      color = c("black", "black", "purple", "#006400")
+      # color = c("black", "black", "purple", "purple", "#006400")
+    )
+
+    p <- p +
+      geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 4.0) +
+      # geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 3.5) +
+      scale_color_identity()
+
+    # Add legend elements
+    legend_y_positions <- seq(max_y * 0.25, max_y * 0.1, length.out = 3)
+    # legend_y_positions <- seq(max_y * 0.15, max_y * 0.05, length.out = 3)
+    legend_x_position <- min(graph_data$SnapshotDate) + days(30)  # Adjust as needed
+
+    legend_data <- data.frame(
+      x = legend_x_position,
+      y = legend_y_positions,
+      label = c("Past Data", "Trend line required to 2033", "Projected trend to all goals met"),
+      color = c("blue", "purple", "#006400")
+    )
+
+    p <- p +
+      geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 4.0) +
+      # geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 3.5) +
+      scale_color_identity()
+
+    # Add model evaluation metrics to the plot
+    annotation_metrics <- data.frame(
+      x = min(graph_data$SnapshotDate),
+      y = max(graph_data$remaining_chapters, na.rm = TRUE) * 1.1,
       label = sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f", dev_explained * 100, r_sq, gcv)
     )
 
