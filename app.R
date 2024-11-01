@@ -2142,6 +2142,8 @@ server <- function(input, output, session) {
       iso_codes <- dashboard_langs_df()[curr_db_tbl_row_indices, ] |>
         pull(`Language Code`)
     } else if (!is.null(curr_db_lang_names)){
+      col_filters <- input$table_dashboard_langs_search_columns
+      print(paste0("col_filters: ", str_c(col_filters, collapse = "; ")))
       iso_codes <- main_rows |>
         filter(`Language Name` %in% curr_db_lang_names) |>
         pull(`Language Code`)
@@ -2963,6 +2965,7 @@ server <- function(input, output, session) {
         db_plot_y <- y_list[[db_plot_EventData[[4]]]]
         db_plot_fill <- fill_list[[db_plot_EventData[[1]]+1]]
       }
+      values$curr_db_lang_names <- table$`Language Name`
 
     } else if (input$selected_db_view == "Engagements") {
       if (switch_cats == 0) {
@@ -3011,6 +3014,12 @@ server <- function(input, output, session) {
     }
 
     values$curr_db_lang_names <- table$`Language Name`
+    # values$curr_db_lang_names <- {
+    #   col_names <- values$db_lang_table_names
+    #   col_filters <- input$table_dashboard_langs_search_columns
+    #   out <- table |>
+    #     f
+    #   table$`Language Name`
 
     replaceData(proxy_table_db_langs, table)
 
@@ -3141,8 +3150,9 @@ server <- function(input, output, session) {
       df
     }
 
+    values$curr_db_lang_names <- df$`Language Name`
 
-    # return(df)
+    return(df)
 
   })
 
