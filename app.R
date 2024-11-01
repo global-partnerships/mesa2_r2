@@ -76,7 +76,8 @@ source("get_history_functions.R")
 
 # **************** global variables ****************
 
-version <- "1.0.15"
+version <- "1.0.16"
+# version <- "1.0.15"
 # version <- "1.0.14"
 # version <- "1.0.13"
 # version <- "1.0.12"
@@ -296,9 +297,10 @@ ui <-
   dashboardPage(
 
     # useShinyjs(),
+    skin = "purple",
     # skin = "green",
     # skin = "blue",
-    skin = "yellow",
+    # skin = "yellow",
     #
     title = paste0("Mesa ", version),
 
@@ -503,19 +505,23 @@ ui <-
                                     type = "pills",
                                     tabPanel(
                                       title = "Goals by chapters completed",
-                                      plotOutput("goals_chapters_remaining_line_plot")
+                                      plotOutput("goals_chapters_remaining_line_plot") |>
+                                        shinycssloaders::withSpinner(type = 5)
                                     ),
                                     tabPanel(
                                       title = "Goals Unmet, \\w projections",
-                                      plotOutput("goals_not_met_line_plot")
+                                      plotOutput("goals_not_met_line_plot") |>
+                                        shinycssloaders::withSpinner(type = 5)
                                     ),
                                     tabPanel(
                                       title = "Goals met",
-                                      plotOutput("goals_met_line_plot")
+                                      plotOutput("goals_met_line_plot") |>
+                                        shinycssloaders::withSpinner(type = 5)
                                     ),
                                     tabPanel(
                                       title = "Goals Unmet vs Met, by year",
-                                      plotOutput("goals_unmet_vs_met_plot")
+                                      plotOutput("goals_unmet_vs_met_plot") |>
+                                        shinycssloaders::withSpinner(type = 5)
                                     )
                                   )
                                 )
@@ -810,7 +816,7 @@ ui <-
 
 server <- function(input, output, session) {
 
-  shinyjs::showLog()
+  # shinyjs::showLog()
 
   date_Vision2025 <- "2025-12-31 23:59:59 GMT"
 
@@ -4317,14 +4323,19 @@ server <- function(input, output, session) {
       select(SnapshotDate, Yes) %>%
       mutate(SnapshotDate = as.Date(SnapshotDate))
 
+    min_date <- graph_data$SnapshotDate |> min()
+    max_date <- graph_data$SnapshotDate |> max()
+    print(paste0("min_date = ", min_date))
+    print(paste0("max_date = ", max_date))
+
     ggplot(graph_data, aes(x = SnapshotDate, y = Yes)) +
       geom_line(color = "blue") +
       geom_point(color = "blue") +
       theme_minimal() +
       labs(x = "Month",
            y = "Goals Met") +
-      scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
-      scale_y_continuous(limits = c(0, max(graph_data$No, na.rm = TRUE) * 1.2)) +
+      scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min_date, max_date)) +
+      scale_y_continuous(limits = c(0, max(graph_data$Yes, na.rm = TRUE) * 1.2)) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1),
             plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
       # scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
@@ -4516,6 +4527,7 @@ server <- function(input, output, session) {
   })
 
   output$goals_chapters_remaining_line_plot <- renderPlot({
+    req(!is.null(input$selected_countries))
 
     graph_data <- summary_aa_plot_df() %>%
       # graph_data <- summary_history_df() %>%
