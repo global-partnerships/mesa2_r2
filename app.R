@@ -3062,12 +3062,8 @@ server <- function(input, output, session) {
     req(input$summary_panels == "distribution")
 
     click_data <- event_data(event = "plotly_click", source = "A", priority = "event") |> unlist()
-print("click_data for 'A'")
-str(click_data)
 
     plot_df <- values$curr_db_plot_df
-print("str for plot_df for db_plot_event_reactive")
-str(plot_df)
 
     return(click_data)
   })
@@ -5887,6 +5883,7 @@ str(plot_df)
       values$val_db_search <- FALSE
       values$val_iso_search = FALSE
       values$val_hist_search = FALSE
+      values$curr_db_lang_names = NULL
 
       updateTextAreaInput(session = session,
                           inputId = "textArea_lang_codes",
