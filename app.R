@@ -1546,6 +1546,7 @@ server <- function(input, output, session) {
       val_RT_rows_selected = NULL,
       sel_summary_panel = NULL,
       curr_db_plot_df = NULL,
+      curr_db_lang_names = NULL,
       hist_langs = NULL,
       val_db_search = FALSE,
       val_hist_search = FALSE,
@@ -2120,6 +2121,7 @@ server <- function(input, output, session) {
   lang_codes <- reactive({
     # input$selected_countries
     # values$val_hist_search
+    curr_db_lang_names <- values$curr_db_lang_names
     iso_search <- values$val_iso_search
     hist_search <- values$val_hist_search
     db_search <- values$val_db_search
@@ -2139,6 +2141,11 @@ server <- function(input, output, session) {
       curr_db_tbl_row_indices <- input$table_dashboard_langs_rows_all
       iso_codes <- dashboard_langs_df()[curr_db_tbl_row_indices, ] |>
         pull(`Language Code`)
+    } else if (!is.null(curr_db_lang_names)){
+      iso_codes <- main_rows |>
+        filter(`Language Name` %in% curr_db_lang_names) |>
+        pull(`Language Code`)
+      curr_db_lang_names <- NULL
     } else {
       country_codes <- countries_selected()$`Country Code` %>%
         unique()
@@ -3003,6 +3010,8 @@ server <- function(input, output, session) {
         mutate(`Project Ended` = as.Date(`Project Ended`))
     }
 
+    values$curr_db_lang_names <- table$`Language Name`
+
     replaceData(proxy_table_db_langs, table)
 
     # shinyjs::runjs(sprintf("document.getElementById('%s').scrollIntoView({behavior: 'smooth'});", "db_details_table_citation"))
@@ -3053,12 +3062,12 @@ server <- function(input, output, session) {
     req(input$summary_panels == "distribution")
 
     click_data <- event_data(event = "plotly_click", source = "A", priority = "event") |> unlist()
-    # print("click_data for 'A'")
-    # str(click_data)
+print("click_data for 'A'")
+str(click_data)
 
     plot_df <- values$curr_db_plot_df
-    # print("str for plot_df for db_plot_event_reactive")
-    # str(plot_df)
+print("str for plot_df for db_plot_event_reactive")
+str(plot_df)
 
     return(click_data)
   })
@@ -3380,7 +3389,8 @@ server <- function(input, output, session) {
   })
 
   observe({
-    values$val_db_search <- TRUE
+    values$val_db_search <- FALSE
+    # values$val_db_search <- TRUE
     values$val_hist_search <- FALSE
     values$val_iso_search <- FALSE
     updateTabsetPanel(session, "main_page_tabset", selected = "table_builder")
