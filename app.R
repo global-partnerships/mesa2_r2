@@ -175,6 +175,7 @@ get_DT_main_obj <- function(data) {
       #   items = 'row'),
       dom = 'Blfritip',
       rowId = 0,
+      columnDefs = list(list(visible = FALSE, targets = 0)),
       buttons = list(
         list(extend = "copy", title = NULL,
              text = "Copy to clipboard",
@@ -2192,7 +2193,8 @@ server <- function(input, output, session) {
     df <- main_rows %>%
       filter(`Language Code` %in% lang_codes()) %>%
       droplevels() %>%
-      select(Country, `Language Name`, `Language Code`, all_of(fields), rowID)
+      select(rowID, Country, `Language Name`, `Language Code`, all_of(fields))
+      # select(Country, `Language Name`, `Language Code`, all_of(fields), rowID)
     return(df)
   })
 
