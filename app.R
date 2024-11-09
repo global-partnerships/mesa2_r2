@@ -4039,13 +4039,11 @@ server <- function(input, output, session) {
 
   # Reactive function to get the data
   map_data_ts_hist_modal <- reactive({
-    # Replace this with your actual data loading logic
     req(values$hist_langs)
     lang_codes <- values$hist_langs |> isolate()
     df <- maps_table |>
       filter(`Language Code` %in% lang_codes)
-    # str(df)
-    return(df)
+     return(df)
   })
 
   # Reactive function to generate status colors
@@ -4053,11 +4051,6 @@ server <- function(input, output, session) {
     req(map_data_ts_hist_modal())
     statuses <- unique(map_data_ts_hist_modal()$`Translation Status`)
     n <- length(statuses)
-
-    #** Print debugging information
-    # print(paste("3614: Number of unique statuses:", n))
-    # print("Unique statuses:")
-    # print(statuses)
 
     if (n == 0) {
       return(NULL)  # Return NULL if there are no statuses
@@ -4088,8 +4081,6 @@ server <- function(input, output, session) {
   })
 
   # Reactive function to calculate view settings
-
-
   view_settings_ts_hist_modal <- reactive({
     req(map_data_ts_hist_modal())
     data <- map_data_ts_hist_modal()
