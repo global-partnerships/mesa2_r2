@@ -1214,10 +1214,10 @@ server <- function(input, output, session) {
   # }
 
   get_all_snapshot_dates <- function(ds_name) {
-    print("@ get_all_snapshot_dates")
+    # print("@ get_all_snapshot_dates")
     ds_name <- "pb_main_ds"
     source <- paste0("data/datasets/", ds_name)
-    print(paste0("ds source = ", source))
+    # print(paste0("ds source = ", source))
 
     ds <- arrow::open_dataset(source, format = "parquet")
 
@@ -1227,15 +1227,15 @@ server <- function(input, output, session) {
       dplyr::arrange(SnapshotDate) |> # Sort
       dplyr::collect()                # Now collect only unique dates
 
-    print(paste0("count of all snapshot dates: ", nrow(dates)))
+    # print(paste0("count of all snapshot dates: ", nrow(dates)))
     return(dates$SnapshotDate)
   }
 
   get_aa_snapshot_dates <- function(ds_name) {
-    print("@ get_aa_snapshot_dates")
+    # print("@ get_aa_snapshot_dates")
     ds_name <- "pb_main_ds"
     source <- paste0("data/datasets/", ds_name)
-    print(paste0("ds source = ", source))
+    # print(paste0("ds source = ", source))
 
     ds <- arrow::open_dataset(source, format = "parquet")
 
@@ -1247,7 +1247,7 @@ server <- function(input, output, session) {
       dplyr::arrange(SnapshotDate) |> # Sort
       dplyr::collect()                # Now collect only unique dates
 
-    print(paste0("count of aa snapshot dates: ", nrow(dates)))
+    # print(paste0("count of aa snapshot dates: ", nrow(dates)))
     return(dates$SnapshotDate)
   }
 
@@ -1274,7 +1274,7 @@ server <- function(input, output, session) {
     # snapshot_date <- filter_SnapshotDate_from()
     source <- paste0("data/datasets/", ds_name)
     max_date <- get_all_snapshot_dates() |> max()
-    print(paste0("max_date = ", max_date))
+    # print(paste0("max_date = ", max_date))
     ds <- arrow::open_dataset(source, format = "parquet")
     df <- ds |>
       dplyr::filter(`SnapshotDate` == max_date) |> # most recent snapshot only |>
@@ -1475,7 +1475,7 @@ server <- function(input, output, session) {
                                        `Language Name`,
                                        "</div>")) %>%
     # filter(!is.na(`Language Name`)) %>%
-    left_join(country_centroids, by = "Country Code") %>%
+    left_join(country_centroids) %>%
     # left_join(country_centroids, by = "Country Code") %>%
     # select(-Country.y) %>%
     # rename(Country = Country.x) %>%
@@ -2144,7 +2144,7 @@ server <- function(input, output, session) {
         pull(`Language Code`)
     } else if (!is.null(curr_db_lang_names)){
       col_filters <- input$table_dashboard_langs_search_columns
-      print(paste0("col_filters: ", str_c(col_filters, collapse = "; ")))
+      # print(paste0("col_filters: ", str_c(col_filters, collapse = "; ")))
       iso_codes <- main_rows |>
         filter(`Language Name` %in% curr_db_lang_names) |>
         pull(`Language Code`)
@@ -4037,15 +4037,210 @@ server <- function(input, output, session) {
   # Translation status history map
   ########################################################################
 
-  # Reactive function to get the data
+  # Reactive function to get the data with spiderfying for identical points
   map_data_ts_hist_modal <- reactive({
     req(values$hist_langs)
     lang_codes <- values$hist_langs |> isolate()
     df <- maps_table |>
       filter(`Language Code` %in% lang_codes)
-     return(df)
+
+    # Function to create spider coordinates for identical points
+    create_spider_coords <- function(points_df, lon, lat, radius = 0.008) {
+      n <- nrow(points_df)
+      if (n == 1) {
+        points_df$Longitude_adjusted <- lon
+        points_df$Latitude_adjusted <- lat
+        return(points_df)
+      }
+
+      # Calculate angles for the spider pattern
+      angles <- seq(0, 360, length.out = n + 1)[1:n]
+
+      # Convert angles to radians and calculate offsets
+      rad <- angles * (pi/180)
+
+      # Create vectors of the correct length
+      lon_offsets <- radius * cos(rad)
+      lat_offsets <- radius * sin(rad)
+
+      points_df$Longitude_adjusted <- lon + lon_offsets
+      points_df$Latitude_adjusted <- lat + lat_offsets
+
+      return(points_df)
+    }
+
+    # Group by coordinates and apply spiderfying
+    df <- df %>%
+      group_by(Longitude, Latitude) %>%
+      group_modify(~create_spider_coords(
+        points_df = .x,
+        lon = .y$Longitude,
+        lat = .y$Latitude
+      )) %>%
+      ungroup()
+
+    # Add jitter to all points as a fallback
+    jitter_amount <- 0.8
+    df$Longitude_jittered <- df$Longitude_adjusted + runif(nrow(df), -jitter_amount, jitter_amount)
+    df$Latitude_jittered <- df$Latitude_adjusted + runif(nrow(df), -jitter_amount, jitter_amount)
+
+    # Calculate label placement angles and offsets
+    n_points <- nrow(df)
+    angles <- seq(0, 360, length.out = n_points + 1)[1:n_points]
+    base_offset <- 20  # Reduced base offset for labels
+
+    # Add label placement information
+    df$label_angle <- angles
+
+    # More granular direction assignments (8 directions)
+    df$label_direction <- case_when(
+      angles > 337.5 | angles <= 22.5 ~ "right",
+      angles > 22.5 & angles <= 67.5 ~ "topright",
+      angles > 67.5 & angles <= 112.5 ~ "top",
+      angles > 112.5 & angles <= 157.5 ~ "topleft",
+      angles > 157.5 & angles <= 202.5 ~ "left",
+      angles > 202.5 & angles <= 247.5 ~ "bottomleft",
+      angles > 247.5 & angles <= 292.5 ~ "bottom",
+      angles > 292.5 & angles <= 337.5 ~ "bottomright",
+      TRUE ~ "right"  # Default case
+    )
+
+    # Calculate x and y offsets based on angles
+    df$offset_x <- case_when(
+      df$label_direction == "right" ~ base_offset,
+      df$label_direction == "topright" ~ base_offset * 0.7071,
+      df$label_direction == "top" ~ 0,
+      df$label_direction == "topleft" ~ -base_offset * 0.7071,
+      df$label_direction == "left" ~ -base_offset,
+      df$label_direction == "bottomleft" ~ -base_offset * 0.7071,
+      df$label_direction == "bottom" ~ 0,
+      df$label_direction == "bottomright" ~ base_offset * 0.7071,
+      TRUE ~ base_offset
+    )
+
+    df$offset_y <- case_when(
+      df$label_direction == "right" ~ 0,
+      df$label_direction == "topright" ~ base_offset * 0.7071,
+      df$label_direction == "top" ~ base_offset,
+      df$label_direction == "topleft" ~ base_offset * 0.7071,
+      df$label_direction == "left" ~ 0,
+      df$label_direction == "bottomleft" ~ -base_offset * 0.7071,
+      df$label_direction == "bottom" ~ -base_offset,
+      df$label_direction == "bottomright" ~ -base_offset * 0.7071,
+      TRUE ~ 0
+    )
+
+    return(df)
   })
 
+  # Create a reactive color function
+  color_func_ts_hist_modal <- reactive({
+    colorFactor(status_colors_ts_hist_modal(),
+                domain = names(status_colors_ts_hist_modal()),
+                reverse = TRUE)
+  })
+
+  # Reactive function to calculate view settings (updated for jittered coordinates)
+  view_settings_ts_hist_modal <- reactive({
+    req(map_data_ts_hist_modal())
+    data <- map_data_ts_hist_modal()
+
+    lat <- data$Latitude_jittered
+    lon <- data$Longitude_jittered
+
+    lat_range <- max(lat, na.rm = TRUE) - min(lat, na.rm = TRUE)
+    lon_range <- max(lon, na.rm = TRUE) - min(lon, na.rm = TRUE)
+
+    zoom <- 8 - log2(max(lat_range, lon_range))
+    zoom <- max(min(zoom, 10), 4)  # Minimum zoom 5, maximum zoom 10
+
+    list(
+      lng = mean(lon, na.rm = TRUE),
+      lat = mean(lat, na.rm = TRUE),
+      zoom = zoom
+    )
+  })
+
+  # Create the leaflet map (updated to use jittered coordinates)
+  # Modified leaflet map rendering
+  output$map_ts_hist_modal <- renderLeaflet({
+    req(map_data_ts_hist_modal(),
+        color_func_ts_hist_modal(),
+        view_settings_ts_hist_modal())
+
+    view <- view_settings_ts_hist_modal()
+    colors <- status_colors_ts_hist_modal()
+    data <- map_data_ts_hist_modal()
+    req(colors)
+
+    leaflet(data) %>%
+      addTiles(group = "Base features") %>%
+      addProviderTiles(providers$Esri.WorldTopoMap, group = "Show topography") %>%
+      addCircleMarkers(
+        ~Longitude_jittered, ~Latitude_jittered,
+        popup = ~html_popup_text,
+        label = ~`Language Name`,
+        color = ~color_func_ts_hist_modal()(`Translation Status`),
+        radius = 4,
+        stroke = FALSE,
+        fillOpacity = 1.0,
+        group = "Language Markers"
+      ) %>%
+      # Add labels with varying directions and offsets
+      addLabelOnlyMarkers(
+        data = data,
+        lng = ~Longitude_jittered,
+        lat = ~Latitude_jittered,
+        label = ~`Language Name`,
+        labelOptions = lapply(1:nrow(data), function(i) {
+          labelOptions(
+            noHide = TRUE,
+            direction = data$label_direction[i],
+            offset = c(data$offset_x[i], data$offset_y[i]),
+            textOnly = TRUE,
+            style = list(
+              "color" = "blue",
+              "font-weight" = "normal",
+              "font-size" = "10px",
+              "border-color" = "rgba(0,0,0,0.2)",
+              "border-radius" = "4px",
+              "padding" = "4px"
+            )
+          )
+        }),
+        group = "Language Names"
+      ) %>%
+      addLayersControl(
+        baseGroups = c("Base features", "Show topography"),
+        overlayGroups = c("Language Markers", "Language Names"),
+        options = layersControlOptions(collapsed = FALSE)
+      ) %>%
+      addLegend(
+        position = "bottomright",
+        colors = unname(colors),
+        labels = names(colors),
+        title = "Translation Status",
+        opacity = 1,
+        layerId = "status_legend"
+      ) |>
+      setView(
+        lng = view_settings_ts_hist_modal()$lng,
+        lat = view_settings_ts_hist_modal()$lat,
+        zoom = view_settings_ts_hist_modal()$zoom
+      ) |>
+      hideGroup("Language Names")
+  })
+
+
+  # Reactive function to get the data
+  # map_data_ts_hist_modal <- reactive({
+  #   req(values$hist_langs)
+  #   lang_codes <- values$hist_langs |> isolate()
+  #   df <- maps_table |>
+  #     filter(`Language Code` %in% lang_codes)
+  #   return(df)
+  # })
+  #
   # Reactive function to generate status colors
   status_colors_ts_hist_modal <- reactive({
     req(map_data_ts_hist_modal())
@@ -4079,100 +4274,100 @@ server <- function(input, output, session) {
                 domain = names(status_colors_ts_hist_modal()),
                 reverse = TRUE)
   })
-
-  # Reactive function to calculate view settings
-  view_settings_ts_hist_modal <- reactive({
-    req(map_data_ts_hist_modal())
-    data <- map_data_ts_hist_modal()
-
-    lat <- data$Latitude
-    lon <- data$Longitude
-
-    lat_range <- max(lat, na.rm = TRUE) - min(lat, na.rm = TRUE)
-    lon_range <- max(lon, na.rm = TRUE) - min(lon, na.rm = TRUE)
-
-    # print(paste0("lat_range: ", lat_range, ", lon_range: ", lon_range))
-
-    # Calculate zoom based on the larger of latitude or longitude range
-    zoom <- 8 - log2(max(lat_range, lon_range))
-
-    # print(paste0("initial zoom: ", zoom))
-
-    # Limit zoom to a reasonable range
-    zoom <- max(min(zoom, 10), 4)  # Minimum zoom 5, maximum zoom 10
-
-    # print(paste0("final zoom: ", zoom))
-
-    list(
-      lng = mean(lon, na.rm = TRUE),
-      lat = mean(lat, na.rm = TRUE),
-      zoom = zoom
-    )
-  })
-
-  # Create the leaflet map
-  output$map_ts_hist_modal <- renderLeaflet({
-    req(map_data_ts_hist_modal(),
-        color_func_ts_hist_modal(),
-        view_settings_ts_hist_modal())
-
-    view <- view_settings_ts_hist_modal()
-    colors <- status_colors_ts_hist_modal()
-    req(colors)
-
-    leaflet(map_data_ts_hist_modal()) %>%
-      addTiles(group = "Base features") %>%
-      addProviderTiles(providers$Esri.WorldTopoMap, group = "Show topography") %>%
-      addCircleMarkers(
-        ~Longitude, ~Latitude,
-        popup = ~html_popup_text,
-        label = ~`Language Name`,
-        color = ~color_func_ts_hist_modal()(`Translation Status`),
-        radius = 4,
-        stroke = FALSE,
-        fillOpacity = 1.0,
-        # fillOpacity = 0.8,
-        group = "Language Markers"
-      ) %>%
-      addLabelOnlyMarkers(
-        ~Longitude, ~Latitude,
-        label = ~`Language Name`,
-        labelOptions = labelOptions(
-          noHide = TRUE,
-          direction = "right",
-          offset = c(10, 0),
-          textOnly = TRUE,
-          style = list(
-            "color" = "blue",
-            "font-weight" = "normal",
-            "font-size" = "10px",
-            "border-color" = "rgba(0,0,0,0.2)",
-            "border-radius" = "4px",
-            "padding" = "4px"
-          )
-        ),
-        group = "Language Names"
-      ) %>%
-      addLayersControl(
-        baseGroups = c("Base features", "Show topography"),
-        overlayGroups = c("Language Markers", "Language Names"),
-        options = layersControlOptions(collapsed = FALSE)
-      ) %>%
-      addLegend(
-        position = "bottomright",
-        colors = unname(colors),
-        labels = names(colors),
-        title = "Translation Status",
-        opacity = 1,
-        layerId = "status_legend"
-      ) |>
-      setView(
-        lng = view_settings_ts_hist_modal()$lng,
-        lat = view_settings_ts_hist_modal()$lat,
-        zoom = view_settings_ts_hist_modal()$zoom
-      ) |>
-      hideGroup("Language Names")
-  })
+  #
+  # # Reactive function to calculate view settings
+  # view_settings_ts_hist_modal <- reactive({
+  #   req(map_data_ts_hist_modal())
+  #   data <- map_data_ts_hist_modal()
+  #
+  #   lat <- data$Latitude
+  #   lon <- data$Longitude
+  #
+  #   lat_range <- max(lat, na.rm = TRUE) - min(lat, na.rm = TRUE)
+  #   lon_range <- max(lon, na.rm = TRUE) - min(lon, na.rm = TRUE)
+  #
+  #   # print(paste0("lat_range: ", lat_range, ", lon_range: ", lon_range))
+  #
+  #   # Calculate zoom based on the larger of latitude or longitude range
+  #   zoom <- 8 - log2(max(lat_range, lon_range))
+  #
+  #   # print(paste0("initial zoom: ", zoom))
+  #
+  #   # Limit zoom to a reasonable range
+  #   zoom <- max(min(zoom, 10), 4)  # Minimum zoom 5, maximum zoom 10
+  #
+  #   # print(paste0("final zoom: ", zoom))
+  #
+  #   list(
+  #     lng = mean(lon, na.rm = TRUE),
+  #     lat = mean(lat, na.rm = TRUE),
+  #     zoom = zoom
+  #   )
+  # })
+  #
+  # # Create the leaflet map
+  # output$map_ts_hist_modal <- renderLeaflet({
+  #   req(map_data_ts_hist_modal(),
+  #       color_func_ts_hist_modal(),
+  #       view_settings_ts_hist_modal())
+  #
+  #   view <- view_settings_ts_hist_modal()
+  #   colors <- status_colors_ts_hist_modal()
+  #   req(colors)
+  #
+  #   leaflet(map_data_ts_hist_modal()) %>%
+  #     addTiles(group = "Base features") %>%
+  #     addProviderTiles(providers$Esri.WorldTopoMap, group = "Show topography") %>%
+  #     addCircleMarkers(
+  #       ~Longitude, ~Latitude,
+  #       popup = ~html_popup_text,
+  #       label = ~`Language Name`,
+  #       color = ~color_func_ts_hist_modal()(`Translation Status`),
+  #       radius = 4,
+  #       stroke = FALSE,
+  #       fillOpacity = 1.0,
+  #       # fillOpacity = 0.8,
+  #       group = "Language Markers"
+  #     ) %>%
+  #     addLabelOnlyMarkers(
+  #       ~Longitude, ~Latitude,
+  #       label = ~`Language Name`,
+  #       labelOptions = labelOptions(
+  #         noHide = TRUE,
+  #         direction = "right",
+  #         offset = c(10, 0),
+  #         textOnly = TRUE,
+  #         style = list(
+  #           "color" = "blue",
+  #           "font-weight" = "normal",
+  #           "font-size" = "10px",
+  #           "border-color" = "rgba(0,0,0,0.2)",
+  #           "border-radius" = "4px",
+  #           "padding" = "4px"
+  #         )
+  #       ),
+  #       group = "Language Names"
+  #     ) %>%
+  #     addLayersControl(
+  #       baseGroups = c("Base features", "Show topography"),
+  #       overlayGroups = c("Language Markers", "Language Names"),
+  #       options = layersControlOptions(collapsed = FALSE)
+  #     ) %>%
+  #     addLegend(
+  #       position = "bottomright",
+  #       colors = unname(colors),
+  #       labels = names(colors),
+  #       title = "Translation Status",
+  #       opacity = 1,
+  #       layerId = "status_legend"
+  #     ) |>
+  #     setView(
+  #       lng = view_settings_ts_hist_modal()$lng,
+  #       lat = view_settings_ts_hist_modal()$lat,
+  #       zoom = view_settings_ts_hist_modal()$zoom
+  #     ) |>
+  #     hideGroup("Language Names")
+  # })
 
   # observe({
   #   req()
@@ -4334,8 +4529,8 @@ server <- function(input, output, session) {
 
     min_date <- graph_data$SnapshotDate |> min()
     max_date <- graph_data$SnapshotDate |> max()
-    print(paste0("min_date = ", min_date))
-    print(paste0("max_date = ", max_date))
+    # print(paste0("min_date = ", min_date))
+    # print(paste0("max_date = ", max_date))
 
     ggplot(graph_data, aes(x = SnapshotDate, y = Yes)) +
       geom_line(color = "blue") +
