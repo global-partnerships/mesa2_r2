@@ -4176,6 +4176,7 @@ server <- function(input, output, session) {
     leaflet(data) %>%
       addTiles(group = "Base features") %>%
       addProviderTiles(providers$Esri.WorldTopoMap, group = "Show topography") %>%
+      addProviderTiles(providers$Esri.WorldGrayCanvas, group = "Minimal features") %>%
       addCircleMarkers(
         ~Longitude_jittered, ~Latitude_jittered,
         popup = ~html_popup_text,
@@ -4211,7 +4212,7 @@ server <- function(input, output, session) {
         group = "Language Names"
       ) %>%
       addLayersControl(
-        baseGroups = c("Base features", "Show topography"),
+        baseGroups = c("Base features", "Show topography", "Minimal features"),
         overlayGroups = c("Language Markers", "Language Names"),
         options = layersControlOptions(collapsed = FALSE)
       ) %>%
