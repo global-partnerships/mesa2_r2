@@ -1458,7 +1458,7 @@ server <- function(input, output, session) {
     select(Country, `Country Code`, `Language Name`, `Language Code`,
            `Is Sign Language`, `Translation Status`, `All Access Status`, `Is Remaining V2025 Need`, `On All Access List`,
            `EGIDS Group`, `Org Engagements (WIP)`,`Denominations (WCD)`, `Agencies (WCD)`,  `See Joshua Project`,
-           Latitude, Longitude, rowID) %>%
+           `All Access Goal Met`, Latitude, Longitude, rowID) %>%
     mutate(html_popup_text =   paste("<div style=width: 20%; display: inline-block; wordwrap: break-word; >",
                                      "<h5>",`Language Name`,"</h5>",
                                      "<ul>",
