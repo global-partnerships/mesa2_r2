@@ -391,7 +391,9 @@ ui <-
                  )
                ),
                 fluidRow(
-                  column(width = 6,
+                  # style = "display: flex; align-items: flex-center;",
+                  style = "display: flex; align-items: flex-end;",
+                  column(width = 4,
                     uiOutput("choose_dashboard")
                   )
                 ),
@@ -532,7 +534,7 @@ ui <-
                         ),
                         tabPanel(
                           value = "summary_map",
-                          title = "Map (summaries by country)",
+                          title = "Maps (summaries by country)",
                           # value = "tab_summary_map",
                           column(
                             width = 12,
@@ -589,7 +591,14 @@ ui <-
                                width = 12,
                                DTOutput("table_dashboard_langs") |>
                                  shinycssloaders::withSpinner(type = 5),
-                               uiOutput("btn_send_db_langs_to_RT"),
+                               column(
+                                 width = 2,
+                                 uiOutput("btn_send_db_langs_to_RT")
+                               ),
+                               column(
+                                 width = 3,
+                                 uiOutput("btn_launch_map_viewer")
+                               ),
                                hr(),
                                div(id = "citation-wrapper",
                                    div(id = "db_details_table_citation",
@@ -891,6 +900,31 @@ server <- function(input, output, session) {
 
   observeEvent(input$exit_mesa, {
     stopApp()
+  })
+
+  output$btn_launch_map_viewer <- renderUI({
+    # actionLink("btn_launch_viewer",
+    #            label = "Launch printer-friendly map viewer of remaining Vision 2025 and All Access",
+    #            # label = "Launch printer-friendly map viewer",
+    #            icon = icon('expand'))
+    actionButton("btn_launch_viewer",
+                 label = "Launch printer-friendly map viewer of remaining Vision 2025 and All Access",
+                 # label = "Launch printer-friendly map viewer",
+                 icon = icon('expand'))
+  })
+
+  observeEvent(input$btn_launch_viewer, {
+    country_codes <- input$selected_countries |>
+      str_c(collapse = '')
+
+    # Construct URL with parameters
+    base_url <- "http://wycliffe-usa.shinyapps.io/mesa_map_viewer/"
+    params <- sprintf("?cc=%s",
+                      URLencode(country_codes))
+    full_url <- paste0(base_url, params)
+
+    # Open in new tab
+    runjs(sprintf("window.open('%s', '_blank');", full_url))
   })
 
   # *** functions scope within server ***
