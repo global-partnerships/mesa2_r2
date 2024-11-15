@@ -917,6 +917,9 @@ server <- function(input, output, session) {
     country_codes <- input$selected_countries |>
       str_c(collapse = '')
 
+    if (country_codes == '') {
+      alert("Please select at least one country under 'Select Country(s)' on the left sidebar.")
+    } else {
     # Construct URL with parameters
     base_url <- "http://wycliffe-usa.shinyapps.io/mesa_map_viewer/"
     params <- sprintf("?cc=%s",
@@ -925,6 +928,7 @@ server <- function(input, output, session) {
 
     # Open in new tab
     runjs(sprintf("window.open('%s', '_blank');", full_url))
+    }
   })
 
   # *** functions scope within server ***
