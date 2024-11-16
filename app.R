@@ -903,14 +903,59 @@ server <- function(input, output, session) {
   })
 
   output$btn_launch_map_viewer <- renderUI({
-    # actionLink("btn_launch_viewer",
-    #            label = "Launch printer-friendly map viewer of remaining Vision 2025 and All Access",
-    #            # label = "Launch printer-friendly map viewer",
-    #            icon = icon('expand'))
-    actionButton("btn_launch_viewer",
-                 label = "Launch printer-friendly map viewer of remaining Vision 2025 and All Access",
-                 # label = "Launch printer-friendly map viewer",
-                 icon = icon('expand'))
+    fluidRow(
+      # Add a div wrapper with specific styling to prevent overlap
+      div(
+        style = "display: flex; align-items: center; gap: 10px;",
+
+        # First column with the main button
+        div(
+          actionButton(
+            "btn_launch_viewer",
+            label = tagList(
+              span(
+                " Launch printer-friendly map viewer of remaining Vision 2025 and All Access for selected country(s)"
+              ),
+              span(
+                " NEW!",
+                style = "font-size: 12px; color: red; font-weight: bold;"
+              )
+            ),
+            icon = icon('expand')
+          )
+        ),
+
+        # Second column with the info link
+        div(
+          actionLink(
+            "map_viewer_info",
+            label = '',
+            icon = icon('circle-question')
+          )
+        )
+      )
+    )
+  })
+
+  observeEvent(input$map_viewer_info, {
+    showModal(
+      modalDialog(
+        title = "Map Viewer Help",
+        HTML(paste(
+          "The printer-friendly map viewer is a separate web application aimed at displaying",
+          "and/or printing the remaining Vision 2025 language and unmet All Access Goals",
+          "plotted on a simple map.",
+          "<br><br>",
+          "It will display only the languages in the countries selected on the left sidebar.",
+          "<br><br>",
+          "To change the list of countries, close the viewer, return to Mesa and update the",
+          "'Selected Country(s)' list."
+        )),
+        size = "m",
+        easyClose = TRUE,
+        footer = modalButton("Close")
+      )
+    )
   })
 
   observeEvent(input$btn_launch_viewer, {
