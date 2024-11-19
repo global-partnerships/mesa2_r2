@@ -592,7 +592,7 @@ ui <-
                                DTOutput("table_dashboard_langs") |>
                                  shinycssloaders::withSpinner(type = 5),
                                column(
-                                 width = 2,
+                                 width = 3,
                                  uiOutput("btn_send_db_langs_to_RT")
                                ),
                                column(
