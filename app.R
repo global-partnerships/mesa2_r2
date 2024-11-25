@@ -19,6 +19,7 @@ library(reactable)
 library(reactablefmtr)
 library(leaflet)
 library(leaflet.extras)
+library(maps)
 library(sf)
 library(DT)
 library(htmltools)
@@ -393,7 +394,7 @@ ui <-
                 fluidRow(
                   # style = "display: flex; align-items: flex-center;",
                   style = "display: flex; align-items: flex-end;",
-                  column(width = 4,
+                  column(width = 6,
                     uiOutput("choose_dashboard")
                   )
                 ),
@@ -434,11 +435,11 @@ ui <-
                                   uiOutput("select_country_scope_ts")
                                 ),
                                 column(
-                                  width = 3,
+                                  width = 5,
                                   uiOutput("select_first_snapshot_ts")
                                 ),
                                 column(
-                                  width = 3,
+                                  width = 4,
                                   uiOutput("select_last_snapshot_ts")
                                 )
                               ),
@@ -486,11 +487,11 @@ ui <-
                                   uiOutput("select_country_scope_aa")
                                 ),
                                 column(
-                                  width = 3,
+                                  width = 5,
                                   uiOutput("select_first_snapshot_aa")
                                 ),
                                 column(
-                                  width = 3,
+                                  width = 4,
                                   uiOutput("select_last_snapshot_aa")
                                 )
                               ),
@@ -646,7 +647,7 @@ ui <-
                   hr(),
                   fluidRow(
                       column(
-                        width = 2,
+                        width = 3,
                         # width = 2, offset = 10,
                         actionLink("lnk_adv_srch",
                                     label = "Search by Language (ISO) Code",
@@ -668,9 +669,9 @@ ui <-
                           # DTOutput("research_table", height = "100%")
                       ),
                       fluidRow(
-                        column(width = 2,
+                        column(width = 3,
                                uiOutput("btn_send_to_langMap")),
-                        column(width = 2,
+                        column(width = 3,
                                uiOutput("btn_clear_reset_rt"))
                       ),
                       hr(),
@@ -1214,7 +1215,6 @@ server <- function(input, output, session) {
     select(`Language.Code`, Latitude, Longitude) |>
     rename(`Language Code` = Language.Code)
 
-
   field_lists <- get_field_lists()
 
   field_hierarchy <- field_lists$sources
@@ -1231,25 +1231,6 @@ server <- function(input, output, session) {
   ##################################################################################
   # load cached data files
   #################################################################################
-
-  # cache_file_list <- list.files("R/data/cache/") |>
-  # cache_file_list <- list.files("data/cache/") |>
-  #   map_vec(\(x) paste0("data/cache/", x))
-  #   # map_vec(\(x) paste0("R/data/cache/", x))
-  #
-  # data_list <- cache_file_list %>%
-  #   map_dfr(\(fname) tibble(
-  #     file_name = str_extract(fname, "(?<=cache/).+(?=\\.feather)"),
-  #     data = list(read_feather(fname)))
-  #     )
-
-  # get_df <- function(fname){
-  #   df <- data_list %>%
-  #     filter(file_name == fname) %>%
-  #     unnest(cols = c(data)) %>%
-  #     select(-file_name)
-  #   return(df)
-  # }
 
   mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), "data/sql_db/mesa.sqlite")
   tbl_list <- DBI::dbListTables(mesa_sql_con)
@@ -1271,30 +1252,6 @@ server <- function(input, output, session) {
       select(-fname)
     return(df)
   }
-
-  # get_all_snapshot_dates <- function(ds_name){
-  #   ds_name <- "pb_main_ds"
-  #   source <- paste0("data/datasets/", ds_name)
-  #   ds <- arrow::open_dataset(source, format = "parquet")
-  #   # out <- ds$SnapshotDate
-  #   df <- ds |>
-  #     dplyr::collect()
-  #   out <- df$SnapshotDate |> unique() |> sort()
-  #   return(out)
-  # }
-  #
-  # get_aa_snapshot_dates <- function(ds_name){
-  #   ds_name <- "pb_main_ds"
-  #   source <- paste0("data/datasets/", ds_name)
-  #   ds <- arrow::open_dataset(source, format = "parquet")
-  #   # out <- ds$SnapshotDate
-  #   df <- ds |>
-  #     dplyr::collect()
-  #   out <- df |>
-  #     filter(!is.na(`All Access Status`)) |>
-  #     pull(SnapshotDate) |> unique() |> sort()
-  #   return(out)
-  # }
 
   get_all_snapshot_dates <- function(ds_name) {
     # print("@ get_all_snapshot_dates")
@@ -1337,9 +1294,6 @@ server <- function(input, output, session) {
   snapshot_dates_list <- get_all_snapshot_dates()
 
   aa_snapshot_dates_list <- get_aa_snapshot_dates()
-
-  # v2025_history_df <- get_df_feather("v2025_history_data")
-  # aa_history_df <- get_df_feather("all_access_history_data")
 
   filter_SnapshotDate_from <- function(year=NULL, month=NULL) {
     if (is.null(year)) {
@@ -1831,7 +1785,7 @@ server <- function(input, output, session) {
              Area %in% input$selected_areas) %>%
       select(Area, Country, `Country Code`)
 
-    choice_list <- map(df$`Country Code`, list)
+    choice_list <- purrr::map(df$`Country Code`, list)
     names(choice_list) <- df$`Country`
     choice_list <- choice_list %>% purrr::flatten()
 
@@ -2396,7 +2350,7 @@ server <- function(input, output, session) {
       lang_markers_df$`All Access Status`,
       lang_markers_df$`EGIDS Group`,
       lang_markers_df$`See Joshua Project`) %>%
-      map(htmltools::HTML)
+      purrr::map(htmltools::HTML)
 
     # labels_language <- sprintf(
     #   "<strong><font size='+1'>%s</font></strong><br/>
@@ -2407,17 +2361,17 @@ server <- function(input, output, session) {
     #   lang_markers_df$`Translation Status`,
     #   lang_markers_df$`All Access Status`,
     #   lang_markers_df$`EGIDS Group`) %>%
-    #   map(htmltools::HTML)
+    #   purrr::map(htmltools::HTML)
 
     labels_name_only <- sprintf(
       "<strong><font size='+1'>%s</font></strong>",
       lang_markers_df$`Language Name`) %>%
-      map(htmltools::HTML)
+      purrr::map(htmltools::HTML)
 
     labels_name_only_small <- sprintf(
       "<span style='font-size:9px'>%s</span>",
       lang_markers_df$`Language Name`) %>%
-      map(htmltools::HTML)
+      purrr::map(htmltools::HTML)
 
     proxy <- leafletProxy("summary_map", session = session)
     proxy <- proxy |> clearGroup("Languages - clustered")
@@ -2430,7 +2384,7 @@ server <- function(input, output, session) {
       group = "Languages - clustered",
       lng = lang_markers_df$Longitude,
       lat = lang_markers_df$Latitude,
-      popup = ~map(lang_markers_df$html_popup_text, HTML),
+      popup = ~purrr::map(lang_markers_df$html_popup_text, HTML),
       # popup = labels_language,
       label = labels_name_only,
       labelOptions = labelOptions(
@@ -2456,7 +2410,7 @@ server <- function(input, output, session) {
         group = "Languages - markers only",
         lng = lang_markers_df$Longitude,
         lat = lang_markers_df$Latitude,
-        popup = ~map(lang_markers_df$html_popup_text, HTML),
+        popup = ~purrr::map(lang_markers_df$html_popup_text, HTML),
         label = labels_name_only,
         radius = 2,
         weight = 5,
@@ -2471,7 +2425,7 @@ server <- function(input, output, session) {
     #     group = "Languages - markers & labels",
     #     lng = lang_markers_df$Longitude,
     #     lat = lang_markers_df$Latitude,
-    #     popup = ~map(lang_markers_df$html_popup_text, HTML),
+    #     popup = ~purrr::map(lang_markers_df$html_popup_text, HTML),
     #     label = labels_name_only_small,
     #     labelOptions = labelOptions(
     #       textOnly = TRUE,
@@ -2961,7 +2915,7 @@ server <- function(input, output, session) {
       lng_markers_df$`Translation Status`,
       lng_markers_df$`All Access Status`,
       lng_markers_df$`EGIDS Group`) %>%
-      map(htmltools::HTML)
+      purrr::map(htmltools::HTML)
 
     # if (values$vb_click_filter %in% c("V2025", "All Access") && length(lng_codes) > 0) {
     if (length(lng_codes) > 0) {
@@ -3514,7 +3468,7 @@ server <- function(input, output, session) {
 
   output$select_first_snapshot_ts <- renderUI({
     fluidRow(
-      column(width = 6,
+      column(width = 5,
          tags$label("Select earliest Snapshot:",
                     style = "display: inline-block;
                          vertical-align: top;
@@ -3532,7 +3486,7 @@ server <- function(input, output, session) {
 
   output$select_last_snapshot_ts <- renderUI({
     fluidRow(
-      column(width = 6,
+      column(width = 5,
              tags$label("Select latest Snapshot:",
                         style = "display: inline-block;
                          vertical-align: top;
@@ -3550,7 +3504,7 @@ server <- function(input, output, session) {
 
   output$select_first_snapshot_aa <- renderUI({
     fluidRow(
-      column(width = 6,
+      column(width = 5,
              tags$label("Select earliest Snapshot:",
                         style = "display: inline-block;
                          vertical-align: top;
@@ -3568,7 +3522,7 @@ server <- function(input, output, session) {
 
   output$select_last_snapshot_aa <- renderUI({
     fluidRow(
-      column(width = 6,
+      column(width = 5,
              tags$label("Select latest Snapshot:",
                         style = "display: inline-block;
                          vertical-align: top;
@@ -3854,25 +3808,18 @@ server <- function(input, output, session) {
   # })
 
   output$remaining_needs_plot <- renderPlot({
-    # Ensure summary_history_df is reactive or available in the server environment
     graph_data <- summary_history_df() %>%
       select(SnapshotDate, Yes) %>%
       mutate(SnapshotDate = as.Date(SnapshotDate),
              Days = as.numeric(SnapshotDate - min(SnapshotDate)))
 
-    # Apply smoothing to the historical data using custom function
     graph_data <- graph_data %>%
       mutate(Smooth_Yes = rollmean_custom(Yes, k = 3))
 
-    # Get the latest date and value
     latest_date <- max(graph_data$SnapshotDate)
     latest_value <- graph_data$Yes[graph_data$SnapshotDate == latest_date]
-
-    # Calculate the target date
     target_date <- as.Date("2025-12-31")
-    # target_date <- as.Date("2026-01-01")
 
-    # Create data for the goal trend line
     days_to_target <- as.numeric(target_date - latest_date)
     daily_reduction <- latest_value / days_to_target
     monthly_reduction <- (daily_reduction * 30) |> as.integer()
@@ -3881,13 +3828,8 @@ server <- function(input, output, session) {
       SnapshotDate = seq(latest_date, target_date, by = "day"),
       Yes = seq(latest_value, 0, by = -daily_reduction)
     )
-
     goal_trend <- goal_trend[goal_trend$Yes >= 0, ]
-# print(head(goal_trend))
-    # Calculate the projected trend using polynomial regression (degree 2)
-    # poly_model <- lm(Yes ~ poly(Days, 2, raw = TRUE), data = graph_data)
 
-    # Handle outliers
     Q1 <- quantile(graph_data$Yes, 0.25, na.rm = TRUE)
     Q3 <- quantile(graph_data$Yes, 0.75, na.rm = TRUE)
     IQR <- Q3 - Q1
@@ -3896,43 +3838,55 @@ server <- function(input, output, session) {
     graph_data <- graph_data %>%
       mutate(Yes_clean = ifelse(Yes < lower_bound | Yes > upper_bound, Smooth_Yes, Yes))
 
-    # Use a more flexible regression model (GAM)
-    gam_model <- gam(Yes ~ s(Days, k = 10), data = graph_data, method = "REML")
-    # gam_model <- gam(Yes_clean ~ s(Days, k = 10), data = graph_data, method = "REML")
+    n_unique_days <- length(unique(graph_data$Days))
 
-    # Evaluate the GAM model
-    summary_gam <- summary(gam_model)
-    dev_explained <- summary_gam$dev.expl
-    r_sq <- summary_gam$r.sq
-    gcv <- summary_gam$sp.criterion
+    tryCatch({
+      if (n_unique_days <= 4) {
+        model <- lm(Yes ~ Days, data = graph_data)
+        summary_model <- summary(model)
+        dev_explained <- summary_model$r.squared
+        r_sq <- summary_model$r.squared
+        gcv <- NA
+        model_type <- "Linear"
+      } else {
+        k_value <- min(n_unique_days - 1, 10)
+        model <- gam(Yes ~ s(Days, k = k_value), data = graph_data, method = "REML")
+        summary_model <- summary(model)
+        dev_explained <- summary_model$dev.expl
+        r_sq <- summary_model$r.sq
+        gcv <- summary_model$sp.criterion
+        model_type <- "GAM"
+      }
 
-    # Print model evaluation metrics
-    # print(paste("Deviance explained:", round(dev_explained, 4)))
-    # print(paste("R-squared:", round(r_sq, 4)))
-    # print(paste("GCV score:", round(gcv, 4)))
+      future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*3, by = 1)
+      projected_trend <- data.frame(
+        SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+        Yes = predict(model, newdata = data.frame(Days = future_days))
+      )
+    }, error = function(e) {
+      model <- lm(Yes ~ Days, data = graph_data)
+      summary_model <- summary(model)
+      dev_explained <- summary_model$r.squared
+      r_sq <- summary_model$r.squared
+      gcv <- NA
+      model_type <- "Linear"
 
-    # Project the trend
-    future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*3, by = 1)  # Project 3 years into the future
-    projected_trend <- data.frame(
-      SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
-      Yes = predict(gam_model, newdata = data.frame(Days = future_days))
-    )
-
-# print(head(projected_trend))
+      future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*3, by = 1)
+      projected_trend <- data.frame(
+        SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+        Yes = predict(model, newdata = data.frame(Days = future_days))
+      )
+    })
 
     projected_trend <- projected_trend[projected_trend$SnapshotDate >= latest_date, ]
     projected_trend$Yes <- pmax(projected_trend$Yes, 0)
     projected_trend <- projected_trend[projected_trend$Yes > 0, ]
 
-    # Determine the maximum date for x-axis
     max_date <- max(target_date, max(projected_trend$SnapshotDate))
 
-    # Create the plot
     p <- ggplot() +
       geom_line(data = graph_data, aes(x = SnapshotDate, y = Yes_clean), color = "blue", linewidth = 1) +
       geom_point(data = graph_data, aes(x = SnapshotDate, y = Yes_clean), color = "blue", size = 2) +
-      # geom_line(data = graph_data, aes(x = SnapshotDate, y = Yes), color = "blue", linewidth = 1) +
-      # geom_point(data = graph_data, aes(x = SnapshotDate, y = Yes), color = "blue", size = 2) +
       geom_line(data = goal_trend, aes(x = SnapshotDate, y = Yes), color = "purple", linetype = "dashed", linewidth = 1) +
       geom_line(data = projected_trend, aes(x = SnapshotDate, y = Yes), color = "#006400", linetype = "dashed", linewidth = 1) +
       theme_minimal() +
@@ -3940,15 +3894,12 @@ server <- function(input, output, session) {
            x = "Date",
            y = "Remaining Needs") +
       scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
-      scale_y_continuous(limits = c(0, max(graph_data$Yes, na.rm = TRUE) * 1.2)) +  # Increased y-axis limit
+      scale_y_continuous(limits = c(0, max(graph_data$Yes, na.rm = TRUE) * 1.2)) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            plot.margin = unit(c(1, 1, 1, 0.5), "cm"))  # Top, right, bottom, left margins
+            plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
 
-    # Add annotations with improved positioning
     max_y <- max(graph_data$Yes, na.rm = TRUE) * 1.1
-    # max_y <- max(graph_data$Yes, na.rm = TRUE)
     annotation_y_positions <- seq(max_y * .9, max_y * .7, length.out = 4)
-    # annotation_y_positions <- seq(max_y * 1.18, max_y * 1.06, length.out = 4)
 
     annotations <- data.frame(
       x = max_date,
@@ -3957,7 +3908,6 @@ server <- function(input, output, session) {
         paste("Goal Target Date: Jan 1, 2026"),
         paste("Latest Actual Data:", format(latest_date, "%b %d, %Y"), "-", latest_value),
         paste("Pace required to reach V2025:", monthly_reduction, "new starts each month"),
-        # paste("Goal ends:", format(max(goal_trend$SnapshotDate), "%b %d, %Y")),
         paste("Projected Data ends:", format(max(projected_trend$SnapshotDate), "%b %d, %Y"))
       ),
       color = c("black", "black", "purple", "#006400")
@@ -3965,13 +3915,10 @@ server <- function(input, output, session) {
 
     p <- p +
       geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 4.0) +
-      # geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 3.5) +
       scale_color_identity()
 
-    # Add legend elements
     legend_y_positions <- seq(max_y * 0.25, max_y * 0.1, length.out = 3)
-    # legend_y_positions <- seq(max_y * 0.15, max_y * 0.05, length.out = 3)
-    legend_x_position <- min(graph_data$SnapshotDate) + days(30)  # Adjust as needed
+    legend_x_position <- min(graph_data$SnapshotDate) + days(30)
 
     legend_data <- data.frame(
       x = legend_x_position,
@@ -3982,35 +3929,24 @@ server <- function(input, output, session) {
 
     p <- p +
       geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 4.0) +
-      # geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 3.5) +
       scale_color_identity()
 
-    # Print diagnostic information
-    # print(paste("Goal end date:", max(goal_trend$SnapshotDate)))
-    # print(paste("Projected Data end date:", max(projected_trend$SnapshotDate)))
+    metrics_text <- if (model_type == "GAM") {
+      sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f",
+              dev_explained * 100, r_sq, gcv)
+    } else {
+      sprintf("Model (Linear) Fit: R-sq = %.2f", r_sq)
+    }
 
-    # Add model evaluation metrics to the plot
     annotation_metrics <- data.frame(
       x = min(graph_data$SnapshotDate),
       y = max(graph_data$Yes, na.rm = TRUE) * 1.1,
-      label = sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f", dev_explained * 100, r_sq, gcv)
-    )
-
-    p <- p +
-      geom_text(data = annotation_metrics, aes(x = x, y = y, label = label),
-                hjust = 0, vjust = 1, size = 3.5, color = "darkgray")
-
-    # Add model evaluation metrics to the plot
-    annotation_metrics <- data.frame(
-      x = min(graph_data$SnapshotDate),
-      y = max(graph_data$Yes, na.rm = TRUE) * 1.1,
-      label = sprintf("Model Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f", dev_explained * 100, r_sq, gcv)
+      label = metrics_text
     )
 
     p <- p +
       geom_text(data = annotation_metrics, aes(x = x, y = y, label = label),
                 hjust = 0, vjust = 1, size = 4.0, color = "darkgray")
-                # hjust = 0, vjust = 1, size = 3.5, color = "darkgray")
 
     p
   })
@@ -4630,27 +4566,163 @@ server <- function(input, output, session) {
       # theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
 
-  output$goals_not_met_line_plot <- renderPlot({
-    # req(input$aa_subs == "All Access Status History")
+  # output$goals_not_met_line_plot <- renderPlot({
+  #   # req(input$aa_subs == "All Access Status History")
+  #
+  #   graph_data <- summary_history_df() %>%
+  #     select(SnapshotDate, `No/other`) %>%
+  #     rename(No = `No/other`) %>%
+  #     mutate(SnapshotDate = as.Date(SnapshotDate),
+  #            Days = as.numeric(SnapshotDate - min(SnapshotDate)))
+  #
+  #   # Apply smoothing to the historical data using custom function
+  #   graph_data <- graph_data %>%
+  #     mutate(Smooth_No = rollmean_custom(No, k = 3))
+  #
+  #   # Get the latest date and value
+  #   latest_date <- max(graph_data$SnapshotDate)
+  #   latest_value <- graph_data$No[graph_data$SnapshotDate == latest_date]
+  #
+  #   # Calculate the target date (December 31, 2033)
+  #   target_date <- as.Date("2033-12-31")
+  #
+  #   # Create data for the goal trend line
+  #   days_to_target <- as.numeric(target_date - latest_date)
+  #   daily_reduction <- latest_value / days_to_target
+  #   monthly_reduction <- (daily_reduction * 30) %>% as.integer()
+  #
+  #   goal_trend <- data.frame(
+  #     SnapshotDate = seq(latest_date, target_date, by = "day"),
+  #     No = seq(latest_value, 0, by = -daily_reduction)
+  #   )
+  #
+  #   goal_trend <- goal_trend[goal_trend$No >= 0, ]
+  #
+  #   # Handle outliers
+  #   Q1 <- quantile(graph_data$No, 0.25, na.rm = TRUE)
+  #   Q3 <- quantile(graph_data$No, 0.75, na.rm = TRUE)
+  #   IQR <- Q3 - Q1
+  #   lower_bound <- Q1 - 1.5 * IQR
+  #   upper_bound <- Q3 + 1.5 * IQR
+  #   graph_data <- graph_data %>%
+  #     mutate(No_clean = ifelse(No < lower_bound | No > upper_bound, Smooth_No, No))
+  #
+  #   # Use a more flexible regression model (GAM)
+  #   gam_model <- gam(No_clean ~ s(Days, k = 10), data = graph_data, method = "REML")
+  #
+  #   # Evaluate the GAM model
+  #   summary_gam <- summary(gam_model)
+  #   dev_explained <- summary_gam$dev.expl
+  #   r_sq <- summary_gam$r.sq
+  #   gcv <- summary_gam$sp.criterion
+  #
+  #   # Print model evaluation metrics
+  #   # print(paste("Deviance explained:", round(dev_explained, 4)))
+  #   # print(paste("R-squared:", round(r_sq, 4)))
+  #   # print(paste("GCV score:", round(gcv, 4)))
+  #
+  #   # Project the trend
+  #   future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
+  #   projected_trend <- data.frame(
+  #     SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+  #     No = predict(gam_model, newdata = data.frame(Days = future_days))
+  #   )
+  #
+  #   projected_trend <- projected_trend[projected_trend$SnapshotDate >= latest_date, ]
+  #   projected_trend$No <- pmax(projected_trend$No, 0)
+  #   projected_trend <- projected_trend[projected_trend$No > 0, ]
+  #
+  #   # Determine the maximum date for x-axis
+  #   max_date <- max(target_date, max(projected_trend$SnapshotDate))
+  #
+  #   # Create the plot
+  #   p <- ggplot() +
+  #     geom_line(data = graph_data, aes(x = SnapshotDate, y = No_clean), color = "blue", linewidth = 1) +
+  #     geom_point(data = graph_data, aes(x = SnapshotDate, y = No_clean), color = "blue", size = 2) +
+  #     geom_line(data = goal_trend, aes(x = SnapshotDate, y = No), color = "purple", linetype = "dashed", linewidth = 1) +
+  #     geom_line(data = projected_trend, aes(x = SnapshotDate, y = No), color = "#006400", linetype = "dashed", linewidth = 1) +
+  #     theme_minimal() +
+  #     labs(x = "Month",
+  #          y = "Goals Unmet") +
+  #     scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
+  #     scale_y_continuous(limits = c(0, max(graph_data$No, na.rm = TRUE) * 1.2)) +
+  #     theme(axis.text.x = element_text(angle = 45, hjust = 1),
+  #           plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
+  #
+  #   # Add annotations with improved positioning
+  #   max_y = max(graph_data$No, na.rm = TRUE) * 1.1
+  #   # max_y <- max(graph_data$`No`, na.rm = TRUE)
+  #   annotation_y_positions <- seq(max_y * .95, max_y * .68, length.out = 4)
+  #   # annotation_y_positions <- seq(max_y * .95, max_y * .65, length.out = 5)
+  #   # annotation_y_positions <- seq(max_y * .9, max_y * .7, length.out = 4)
+  #   # annotation_y_positions <- seq(max_y * 1.18, max_y * 1.06, length.out = 4)
+  #
+  #   annotations <- data.frame(
+  #     x = max_date,
+  #     y = annotation_y_positions,
+  #     label = c(
+  #       paste("Completion Target Date: Dec 31, 2033"),
+  #       paste("Latest Actual Data:", format(latest_date, "%b %d, %Y"), "-", latest_value, " goals unmet"),
+  #       # paste("Target completion:", format(max(goal_trend$SnapshotDate), "%b %d, %Y")),
+  #       # paste("Monthly pace required to reach target:", monthly_pace),
+  #       paste("Pace required to reach 2033:", monthly_reduction, "goal(s) met each month"),
+  #       paste("Projected Data ends:", format(max(projected_trend$SnapshotDate), "%b %d, %Y"))
+  #     ),
+  #     color = c("black", "black", "purple", "#006400")
+  #     # color = c("black", "black", "purple", "purple", "#006400")
+  #   )
+  #
+  #   p <- p +
+  #     geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 4.0) +
+  #     # geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 3.5) +
+  #     scale_color_identity()
+  #
+  #   # Add legend elements
+  #   legend_y_positions <- seq(max_y * 0.25, max_y * 0.1, length.out = 3)
+  #   # legend_y_positions <- seq(max_y * 0.15, max_y * 0.05, length.out = 3)
+  #   legend_x_position <- min(graph_data$SnapshotDate) + days(30)  # Adjust as needed
+  #
+  #   legend_data <- data.frame(
+  #     x = legend_x_position,
+  #     y = legend_y_positions,
+  #     label = c("Past Data", "Trend line required to 2033", "Projected trend to all goals met"),
+  #     color = c("blue", "purple", "#006400")
+  #   )
+  #
+  #   p <- p +
+  #     geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 4.0) +
+  #     # geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 3.5) +
+  #     scale_color_identity()
+  #
+  #   # Add model evaluation metrics to the plot
+  #   annotation_metrics <- data.frame(
+  #     x = min(graph_data$SnapshotDate),
+  #     y = max(graph_data$No, na.rm = TRUE) * 1.1,
+  #     label = sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f", dev_explained * 100, r_sq, gcv)
+  #   )
+  #
+  #   p <- p +
+  #     geom_text(data = annotation_metrics, aes(x = x, y = y, label = label),
+  #               hjust = 0, vjust = 1, size = 3.5, color = "darkgray")
+  #   p
+  #
+  #
+  # })
 
+  output$goals_not_met_line_plot <- renderPlot({
     graph_data <- summary_history_df() %>%
       select(SnapshotDate, `No/other`) %>%
       rename(No = `No/other`) %>%
       mutate(SnapshotDate = as.Date(SnapshotDate),
              Days = as.numeric(SnapshotDate - min(SnapshotDate)))
 
-    # Apply smoothing to the historical data using custom function
     graph_data <- graph_data %>%
       mutate(Smooth_No = rollmean_custom(No, k = 3))
 
-    # Get the latest date and value
     latest_date <- max(graph_data$SnapshotDate)
     latest_value <- graph_data$No[graph_data$SnapshotDate == latest_date]
-
-    # Calculate the target date (December 31, 2033)
     target_date <- as.Date("2033-12-31")
 
-    # Create data for the goal trend line
     days_to_target <- as.numeric(target_date - latest_date)
     daily_reduction <- latest_value / days_to_target
     monthly_reduction <- (daily_reduction * 30) %>% as.integer()
@@ -4659,10 +4731,8 @@ server <- function(input, output, session) {
       SnapshotDate = seq(latest_date, target_date, by = "day"),
       No = seq(latest_value, 0, by = -daily_reduction)
     )
-
     goal_trend <- goal_trend[goal_trend$No >= 0, ]
 
-    # Handle outliers
     Q1 <- quantile(graph_data$No, 0.25, na.rm = TRUE)
     Q3 <- quantile(graph_data$No, 0.75, na.rm = TRUE)
     IQR <- Q3 - Q1
@@ -4671,35 +4741,52 @@ server <- function(input, output, session) {
     graph_data <- graph_data %>%
       mutate(No_clean = ifelse(No < lower_bound | No > upper_bound, Smooth_No, No))
 
-    # Use a more flexible regression model (GAM)
-    gam_model <- gam(No_clean ~ s(Days, k = 10), data = graph_data, method = "REML")
+    n_unique_days <- length(unique(graph_data$Days))
 
-    # Evaluate the GAM model
-    summary_gam <- summary(gam_model)
-    dev_explained <- summary_gam$dev.expl
-    r_sq <- summary_gam$r.sq
-    gcv <- summary_gam$sp.criterion
+    tryCatch({
+      if (n_unique_days <= 4) {
+        model <- lm(No ~ Days, data = graph_data)
+        summary_model <- summary(model)
+        dev_explained <- summary_model$r.squared
+        r_sq <- summary_model$r.squared
+        gcv <- NA
+        model_type <- "Linear"
+      } else {
+        k_value <- min(n_unique_days - 1, 10)
+        model <- gam(No ~ s(Days, k = k_value), data = graph_data, method = "REML")
+        summary_model <- summary(model)
+        dev_explained <- summary_model$dev.expl
+        r_sq <- summary_model$r.sq
+        gcv <- summary_model$sp.criterion
+        model_type <- "GAM"
+      }
 
-    # Print model evaluation metrics
-    # print(paste("Deviance explained:", round(dev_explained, 4)))
-    # print(paste("R-squared:", round(r_sq, 4)))
-    # print(paste("GCV score:", round(gcv, 4)))
+      future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
+      projected_trend <- data.frame(
+        SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+        No = predict(model, newdata = data.frame(Days = future_days))
+      )
+    }, error = function(e) {
+      model <- lm(No ~ Days, data = graph_data)
+      summary_model <- summary(model)
+      dev_explained <- summary_model$r.squared
+      r_sq <- summary_model$r.squared
+      gcv <- NA
+      model_type <- "Linear"
 
-    # Project the trend
-    future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
-    projected_trend <- data.frame(
-      SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
-      No = predict(gam_model, newdata = data.frame(Days = future_days))
-    )
+      future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
+      projected_trend <- data.frame(
+        SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+        No = predict(model, newdata = data.frame(Days = future_days))
+      )
+    })
 
     projected_trend <- projected_trend[projected_trend$SnapshotDate >= latest_date, ]
     projected_trend$No <- pmax(projected_trend$No, 0)
     projected_trend <- projected_trend[projected_trend$No > 0, ]
 
-    # Determine the maximum date for x-axis
     max_date <- max(target_date, max(projected_trend$SnapshotDate))
 
-    # Create the plot
     p <- ggplot() +
       geom_line(data = graph_data, aes(x = SnapshotDate, y = No_clean), color = "blue", linewidth = 1) +
       geom_point(data = graph_data, aes(x = SnapshotDate, y = No_clean), color = "blue", size = 2) +
@@ -4713,13 +4800,8 @@ server <- function(input, output, session) {
       theme(axis.text.x = element_text(angle = 45, hjust = 1),
             plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
 
-    # Add annotations with improved positioning
-    max_y = max(graph_data$No, na.rm = TRUE) * 1.1
-    # max_y <- max(graph_data$`No`, na.rm = TRUE)
+    max_y <- max(graph_data$No, na.rm = TRUE) * 1.1
     annotation_y_positions <- seq(max_y * .95, max_y * .68, length.out = 4)
-    # annotation_y_positions <- seq(max_y * .95, max_y * .65, length.out = 5)
-    # annotation_y_positions <- seq(max_y * .9, max_y * .7, length.out = 4)
-    # annotation_y_positions <- seq(max_y * 1.18, max_y * 1.06, length.out = 4)
 
     annotations <- data.frame(
       x = max_date,
@@ -4727,24 +4809,18 @@ server <- function(input, output, session) {
       label = c(
         paste("Completion Target Date: Dec 31, 2033"),
         paste("Latest Actual Data:", format(latest_date, "%b %d, %Y"), "-", latest_value, " goals unmet"),
-        # paste("Target completion:", format(max(goal_trend$SnapshotDate), "%b %d, %Y")),
-        # paste("Monthly pace required to reach target:", monthly_pace),
         paste("Pace required to reach 2033:", monthly_reduction, "goal(s) met each month"),
         paste("Projected Data ends:", format(max(projected_trend$SnapshotDate), "%b %d, %Y"))
       ),
       color = c("black", "black", "purple", "#006400")
-      # color = c("black", "black", "purple", "purple", "#006400")
     )
 
     p <- p +
       geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 4.0) +
-      # geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 3.5) +
       scale_color_identity()
 
-    # Add legend elements
     legend_y_positions <- seq(max_y * 0.25, max_y * 0.1, length.out = 3)
-    # legend_y_positions <- seq(max_y * 0.15, max_y * 0.05, length.out = 3)
-    legend_x_position <- min(graph_data$SnapshotDate) + days(30)  # Adjust as needed
+    legend_x_position <- min(graph_data$SnapshotDate) + days(30)
 
     legend_data <- data.frame(
       x = legend_x_position,
@@ -4755,22 +4831,25 @@ server <- function(input, output, session) {
 
     p <- p +
       geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 4.0) +
-      # geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 3.5) +
       scale_color_identity()
 
-    # Add model evaluation metrics to the plot
+    metrics_text <- if (model_type == "GAM") {
+      sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f",
+              dev_explained * 100, r_sq, gcv)
+    } else {
+      sprintf("Model (Linear) Fit: R-sq = %.2f", r_sq)
+    }
+
     annotation_metrics <- data.frame(
       x = min(graph_data$SnapshotDate),
       y = max(graph_data$No, na.rm = TRUE) * 1.1,
-      label = sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f", dev_explained * 100, r_sq, gcv)
+      label = metrics_text
     )
 
     p <- p +
       geom_text(data = annotation_metrics, aes(x = x, y = y, label = label),
                 hjust = 0, vjust = 1, size = 3.5, color = "darkgray")
     p
-
-
   })
 
   summary_aa_plot_df <- reactive({
@@ -4814,29 +4893,169 @@ server <- function(input, output, session) {
     return(df)
   })
 
+  # output$goals_chapters_remaining_line_plot <- renderPlot({
+  #   req(!is.null(input$selected_countries))
+  #
+  #   graph_data <- summary_aa_plot_df() %>%
+  #     # graph_data <- summary_history_df() %>%
+  #     select(SnapshotDate, `remaining_chapters`) %>%
+  #     mutate(SnapshotDate = as.Date(SnapshotDate),
+  #            Days = as.numeric(SnapshotDate - min(SnapshotDate)))
+  #   # print("str for graph_data in chapter plot output code")
+  #   # str(graph_data)
+  #
+  #   # Apply smoothing to the historical data using custom function
+  #   graph_data <- graph_data %>%
+  #     mutate(Smooth_remaining_chapters = rollmean_custom(remaining_chapters, k = 3))
+  #
+  #   # Get the latest date and value
+  #   latest_date <- max(graph_data$SnapshotDate)
+  #   latest_value <- graph_data$remaining_chapters[graph_data$SnapshotDate == latest_date]
+  #
+  #   # Calculate the target date (December 31, 2033)
+  #   target_date <- as.Date("2033-12-31")
+  #
+  #   # Create data for the goal trend line
+  #   days_to_target <- as.numeric(target_date - latest_date)
+  #   daily_reduction <- latest_value / days_to_target
+  #   monthly_reduction <- (daily_reduction * 30) %>% as.integer()
+  #
+  #   goal_trend <- data.frame(
+  #     SnapshotDate = seq(latest_date, target_date, by = "day"),
+  #     remaining_chapters = seq(latest_value, 0, by = -daily_reduction)
+  #   )
+  #
+  #   goal_trend <- goal_trend[goal_trend$remaining_chapters >= 0, ]
+  #
+  #   # Handle outliers
+  #   Q1 <- quantile(graph_data$remaining_chapters, 0.25, na.rm = TRUE)
+  #   Q3 <- quantile(graph_data$remaining_chapters, 0.75, na.rm = TRUE)
+  #   IQR <- Q3 - Q1
+  #   lower_bound <- Q1 - 1.5 * IQR
+  #   upper_bound <- Q3 + 1.5 * IQR
+  #   graph_data <- graph_data %>%
+  #     mutate(remaining_chapters_clean = ifelse(remaining_chapters < lower_bound |
+  #                                                remaining_chapters > upper_bound,
+  #                                              Smooth_remaining_chapters,
+  #                                              remaining_chapters))
+  #
+  #   # Use a more flexible regression model (GAM)
+  #   gam_model <- gam(remaining_chapters_clean ~ s(Days, k = 10), data = graph_data, method = "REML")
+  #
+  #   # Evaluate the GAM model
+  #   summary_gam <- summary(gam_model)
+  #   dev_explained <- summary_gam$dev.expl
+  #   r_sq <- summary_gam$r.sq
+  #   gcv <- summary_gam$sp.criterion
+  #
+  #   # Print model evaluation metrics
+  #   # print(paste("Deviance explained:", round(dev_explained, 4)))
+  #   # print(paste("R-squared:", round(r_sq, 4)))
+  #   # print(paste("GCV score:", round(gcv, 4)))
+  #
+  #   # Project the trend
+  #   future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
+  #   projected_trend <- data.frame(
+  #     SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+  #     remaining_chapters = predict(gam_model, newdata = data.frame(Days = future_days))
+  #   )
+  #
+  #   projected_trend <- projected_trend[projected_trend$SnapshotDate >= latest_date, ]
+  #   projected_trend$remaining_chapters <- pmax(projected_trend$remaining_chapters, 0)
+  #   projected_trend <- projected_trend[projected_trend$remaining_chapters > 0, ]
+  #
+  #   # Determine the maximum date for x-axis
+  #   max_date <- max(target_date, max(projected_trend$SnapshotDate))
+  #
+  #   # Create the plot
+  #   p <- ggplot() +
+  #     geom_line(data = graph_data, aes(x = SnapshotDate, y = remaining_chapters_clean), color = "blue", size = 1) +
+  #     geom_point(data = graph_data, aes(x = SnapshotDate, y = remaining_chapters_clean), color = "blue", size = 2) +
+  #     geom_line(data = goal_trend, aes(x = SnapshotDate, y = remaining_chapters), color = "purple", linetype = "dashed", size = 1) +
+  #     geom_line(data = projected_trend, aes(x = SnapshotDate, y = remaining_chapters), color = "#006400", linetype = "dashed", size = 1) +
+  #     theme_minimal() +
+  #     labs( x = "Month",
+  #           y = "Remaining chapters") +
+  #     scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
+  #     scale_y_continuous(limits = c(0, max(graph_data$remaining_chapters, na.rm = TRUE) * 1.2)) +
+  #     theme(axis.text.x = element_text(angle = 45, hjust = 1),
+  #           plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
+  #
+  #   # Add annotations with improved positioning
+  #   max_y = max(graph_data$remaining_chapters, na.rm = TRUE) * 1.1
+  #   # max_y <- max(graph_data$`remaining_chapters`, na.rm = TRUE)
+  #   annotation_y_positions <- seq(max_y * .95, max_y * .68, length.out = 4)
+  #   # annotation_y_positions <- seq(max_y * .95, max_y * .65, length.out = 5)
+  #   # annotation_y_positions <- seq(max_y * .9, max_y * .7, length.out = 4)
+  #   # annotation_y_positions <- seq(max_y * 1.18, max_y * 1.06, length.out = 4)
+  #
+  #   annotations <- data.frame(
+  #     x = max_date,
+  #     y = annotation_y_positions,
+  #     label = c(
+  #       paste("Completion Target Date: Dec 31, 2033"),
+  #       paste("Latest Actual Data:", format(latest_date, "%b %d, %Y"), "-", latest_value, " goals unmet"),
+  #       # paste("Target completion:", format(max(goal_trend$SnapshotDate), "%b %d, %Y")),
+  #       # paste("Monthly pace required to reach target:", monthly_pace),
+  #       paste("Pace required to reach 2033:", monthly_reduction, "chapters completed each month"),
+  #       paste("Projected Data ends:", format(max(projected_trend$SnapshotDate), "%b %d, %Y"))
+  #     ),
+  #     color = c("black", "black", "purple", "#006400")
+  #     # color = c("black", "black", "purple", "purple", "#006400")
+  #   )
+  #
+  #   p <- p +
+  #     geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 4.0) +
+  #     # geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 3.5) +
+  #     scale_color_identity()
+  #
+  #   # Add legend elements
+  #   legend_y_positions <- seq(max_y * 0.25, max_y * 0.1, length.out = 3)
+  #   # legend_y_positions <- seq(max_y * 0.15, max_y * 0.05, length.out = 3)
+  #   legend_x_position <- min(graph_data$SnapshotDate) + days(30)  # Adjust as needed
+  #
+  #   legend_data <- data.frame(
+  #     x = legend_x_position,
+  #     y = legend_y_positions,
+  #     label = c("Past Data", "Trend line required to 2033", "Projected trend to all goals met"),
+  #     color = c("blue", "purple", "#006400")
+  #   )
+  #
+  #   p <- p +
+  #     geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 4.0) +
+  #     # geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 3.5) +
+  #     scale_color_identity()
+  #
+  #   # Add model evaluation metrics to the plot
+  #   annotation_metrics <- data.frame(
+  #     x = min(graph_data$SnapshotDate),
+  #     y = max(graph_data$remaining_chapters, na.rm = TRUE) * 1.1,
+  #     label = sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f", dev_explained * 100, r_sq, gcv)
+  #   )
+  #
+  #   p <- p +
+  #     geom_text(data = annotation_metrics, aes(x = x, y = y, label = label),
+  #               hjust = 0, vjust = 1, size = 3.5, color = "darkgray")
+  #   p
+  #
+  #
+  # })
+
   output$goals_chapters_remaining_line_plot <- renderPlot({
     req(!is.null(input$selected_countries))
 
     graph_data <- summary_aa_plot_df() %>%
-      # graph_data <- summary_history_df() %>%
-      select(SnapshotDate, `remaining_chapters`) %>%
+      select(SnapshotDate, remaining_chapters) %>%
       mutate(SnapshotDate = as.Date(SnapshotDate),
              Days = as.numeric(SnapshotDate - min(SnapshotDate)))
-    # print("str for graph_data in chapter plot output code")
-    # str(graph_data)
 
-    # Apply smoothing to the historical data using custom function
     graph_data <- graph_data %>%
       mutate(Smooth_remaining_chapters = rollmean_custom(remaining_chapters, k = 3))
 
-    # Get the latest date and value
     latest_date <- max(graph_data$SnapshotDate)
     latest_value <- graph_data$remaining_chapters[graph_data$SnapshotDate == latest_date]
-
-    # Calculate the target date (December 31, 2033)
     target_date <- as.Date("2033-12-31")
 
-    # Create data for the goal trend line
     days_to_target <- as.numeric(target_date - latest_date)
     daily_reduction <- latest_value / days_to_target
     monthly_reduction <- (daily_reduction * 30) %>% as.integer()
@@ -4845,10 +5064,8 @@ server <- function(input, output, session) {
       SnapshotDate = seq(latest_date, target_date, by = "day"),
       remaining_chapters = seq(latest_value, 0, by = -daily_reduction)
     )
-
     goal_trend <- goal_trend[goal_trend$remaining_chapters >= 0, ]
 
-    # Handle outliers
     Q1 <- quantile(graph_data$remaining_chapters, 0.25, na.rm = TRUE)
     Q3 <- quantile(graph_data$remaining_chapters, 0.75, na.rm = TRUE)
     IQR <- Q3 - Q1
@@ -4860,55 +5077,67 @@ server <- function(input, output, session) {
                                                Smooth_remaining_chapters,
                                                remaining_chapters))
 
-    # Use a more flexible regression model (GAM)
-    gam_model <- gam(remaining_chapters_clean ~ s(Days, k = 10), data = graph_data, method = "REML")
+    n_unique_days <- length(unique(graph_data$Days))
 
-    # Evaluate the GAM model
-    summary_gam <- summary(gam_model)
-    dev_explained <- summary_gam$dev.expl
-    r_sq <- summary_gam$r.sq
-    gcv <- summary_gam$sp.criterion
+    tryCatch({
+      if (n_unique_days <= 4) {
+        model <- lm(remaining_chapters ~ Days, data = graph_data)
+        summary_model <- summary(model)
+        dev_explained <- summary_model$r.squared
+        r_sq <- summary_model$r.squared
+        gcv <- NA
+        model_type <- "Linear"
+      } else {
+        k_value <- min(n_unique_days - 1, 10)
+        model <- gam(remaining_chapters ~ s(Days, k = k_value), data = graph_data, method = "REML")
+        summary_model <- summary(model)
+        dev_explained <- summary_model$dev.expl
+        r_sq <- summary_model$r.sq
+        gcv <- summary_model$sp.criterion
+        model_type <- "GAM"
+      }
 
-    # Print model evaluation metrics
-    # print(paste("Deviance explained:", round(dev_explained, 4)))
-    # print(paste("R-squared:", round(r_sq, 4)))
-    # print(paste("GCV score:", round(gcv, 4)))
+      future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
+      projected_trend <- data.frame(
+        SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+        remaining_chapters = predict(model, newdata = data.frame(Days = future_days))
+      )
+    }, error = function(e) {
+      model <- lm(remaining_chapters ~ Days, data = graph_data)
+      summary_model <- summary(model)
+      dev_explained <- summary_model$r.squared
+      r_sq <- summary_model$r.squared
+      gcv <- NA
+      model_type <- "Linear"
 
-    # Project the trend
-    future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
-    projected_trend <- data.frame(
-      SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
-      remaining_chapters = predict(gam_model, newdata = data.frame(Days = future_days))
-    )
+      future_days <- seq(max(graph_data$Days), max(graph_data$Days) + 365*10, by = 1)
+      projected_trend <- data.frame(
+        SnapshotDate = min(graph_data$SnapshotDate) + days(future_days),
+        remaining_chapters = predict(model, newdata = data.frame(Days = future_days))
+      )
+    })
 
     projected_trend <- projected_trend[projected_trend$SnapshotDate >= latest_date, ]
     projected_trend$remaining_chapters <- pmax(projected_trend$remaining_chapters, 0)
     projected_trend <- projected_trend[projected_trend$remaining_chapters > 0, ]
 
-    # Determine the maximum date for x-axis
     max_date <- max(target_date, max(projected_trend$SnapshotDate))
 
-    # Create the plot
     p <- ggplot() +
       geom_line(data = graph_data, aes(x = SnapshotDate, y = remaining_chapters_clean), color = "blue", size = 1) +
       geom_point(data = graph_data, aes(x = SnapshotDate, y = remaining_chapters_clean), color = "blue", size = 2) +
       geom_line(data = goal_trend, aes(x = SnapshotDate, y = remaining_chapters), color = "purple", linetype = "dashed", size = 1) +
       geom_line(data = projected_trend, aes(x = SnapshotDate, y = remaining_chapters), color = "#006400", linetype = "dashed", size = 1) +
       theme_minimal() +
-      labs( x = "Month",
-            y = "Remaining chapters") +
+      labs(x = "Month",
+           y = "Remaining chapters") +
       scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
       scale_y_continuous(limits = c(0, max(graph_data$remaining_chapters, na.rm = TRUE) * 1.2)) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1),
             plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
 
-    # Add annotations with improved positioning
-    max_y = max(graph_data$remaining_chapters, na.rm = TRUE) * 1.1
-    # max_y <- max(graph_data$`remaining_chapters`, na.rm = TRUE)
+    max_y <- max(graph_data$remaining_chapters, na.rm = TRUE) * 1.1
     annotation_y_positions <- seq(max_y * .95, max_y * .68, length.out = 4)
-    # annotation_y_positions <- seq(max_y * .95, max_y * .65, length.out = 5)
-    # annotation_y_positions <- seq(max_y * .9, max_y * .7, length.out = 4)
-    # annotation_y_positions <- seq(max_y * 1.18, max_y * 1.06, length.out = 4)
 
     annotations <- data.frame(
       x = max_date,
@@ -4916,24 +5145,18 @@ server <- function(input, output, session) {
       label = c(
         paste("Completion Target Date: Dec 31, 2033"),
         paste("Latest Actual Data:", format(latest_date, "%b %d, %Y"), "-", latest_value, " goals unmet"),
-        # paste("Target completion:", format(max(goal_trend$SnapshotDate), "%b %d, %Y")),
-        # paste("Monthly pace required to reach target:", monthly_pace),
         paste("Pace required to reach 2033:", monthly_reduction, "chapters completed each month"),
         paste("Projected Data ends:", format(max(projected_trend$SnapshotDate), "%b %d, %Y"))
       ),
       color = c("black", "black", "purple", "#006400")
-      # color = c("black", "black", "purple", "purple", "#006400")
     )
 
     p <- p +
       geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 4.0) +
-      # geom_text(data = annotations, aes(x = x, y = y, label = label, color = color), hjust = 1, size = 3.5) +
       scale_color_identity()
 
-    # Add legend elements
     legend_y_positions <- seq(max_y * 0.25, max_y * 0.1, length.out = 3)
-    # legend_y_positions <- seq(max_y * 0.15, max_y * 0.05, length.out = 3)
-    legend_x_position <- min(graph_data$SnapshotDate) + days(30)  # Adjust as needed
+    legend_x_position <- min(graph_data$SnapshotDate) + days(30)
 
     legend_data <- data.frame(
       x = legend_x_position,
@@ -4944,22 +5167,25 @@ server <- function(input, output, session) {
 
     p <- p +
       geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 4.0) +
-      # geom_text(data = legend_data, aes(x = x, y = y, label = label, color = color), hjust = 0, size = 3.5) +
       scale_color_identity()
 
-    # Add model evaluation metrics to the plot
+    metrics_text <- if (model_type == "GAM") {
+      sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f",
+              dev_explained * 100, r_sq, gcv)
+    } else {
+      sprintf("Model (Linear) Fit: R-sq = %.2f", r_sq)
+    }
+
     annotation_metrics <- data.frame(
       x = min(graph_data$SnapshotDate),
       y = max(graph_data$remaining_chapters, na.rm = TRUE) * 1.1,
-      label = sprintf("Model (GAM) Fit: Dev. Expl. = %.2f%%, R-sq = %.2f, GCV = %.2f", dev_explained * 100, r_sq, gcv)
+      label = metrics_text
     )
 
     p <- p +
       geom_text(data = annotation_metrics, aes(x = x, y = y, label = label),
                 hjust = 0, vjust = 1, size = 3.5, color = "darkgray")
     p
-
-
   })
 
   output$goals_unmet_vs_met_plot <- renderPlot({
@@ -6861,7 +7087,7 @@ server <- function(input, output, session) {
   #
   #   # *** create or rewrite stored_fields_table ***
   #   subs <- stored_fields %>% pull(sub) %>% unique()
-  #   fields_list <- map(subs, ~ stored_fields %>% filter(sub == .x) %>% pull(fields))
+  #   fields_list <- purrr::map(subs, ~ stored_fields %>% filter(sub == .x) %>% pull(fields))
   #   stored_fields_table <- tibble(sub = subs, fields_list = fields_list)
   #
   #   values$stored_fields_table <- stored_fields_table}) %>%
@@ -6884,7 +7110,7 @@ server <- function(input, output, session) {
   #     session = getDefaultReactiveDomain()) |>
   #     str_split_1("@@")
   #
-  #   sel_areas |> map(\(x) {
+  #   sel_areas |> purrr::map(\(x) {
   #     new_row <- tibble(
   #       area = x |> str_remove("sel_"),
   #       countries = partner_areas |>
@@ -6992,9 +7218,9 @@ server <- function(input, output, session) {
   #     filter(Topic != "Minimum") |>
   #     pull(Topic) |>
   #     unique() |>
-  #     map(\(x) {
+  #     purrr::map(\(x) {
   #       cookie_names <- paste0("sel_", x)
-  #     }) |> map(\(x) {
+  #     }) |> purrr::map(\(x) {
   #       value <- get_cookie(
   #         cookie_name = x,
   #         missing = "",
@@ -7026,7 +7252,7 @@ server <- function(input, output, session) {
       filter(Topic != "Minimum") %>%
       pull(Topic) %>%
       unique() %>%
-      map(\(x) {
+      purrr::map(\(x) {
         cookie_name <- paste0("sel_", x)
         value <- get_cookie(
           cookie_name = cookie_name,
@@ -7237,7 +7463,7 @@ server <- function(input, output, session) {
     #         opacity = 0.9,
     #         label = data$`Language Name`,
     #         clusterOptions = markerClusterOptions()) %>%
-    #       addMiniMap(
+    #       addMinimap(
     #         width = 150,
     #         height = 150,
     #         zoomLevelOffset = -5,
@@ -7357,17 +7583,17 @@ server <- function(input, output, session) {
         lang_markers_df$`Translation Status`,
         lang_markers_df$`All Access Status`,
         lang_markers_df$`EGIDS Group`) %>%
-        map(htmltools::HTML)
+        purrr::map(htmltools::HTML)
 
       labels_name_only <- sprintf(
         "<strong><font size='+1'>%s</font></strong>",
         lang_markers_df$`Language Name`) %>%
-        map(htmltools::HTML)
+        purrr::map(htmltools::HTML)
 
       labels_name_only_small <- sprintf(
         "<span style='font-size:9px'>%s</span>",
         lang_markers_df$`Language Name`) %>%
-        map(htmltools::HTML)
+        purrr::map(htmltools::HTML)
 
       m <- leaflet(countries) %>%
         addTiles(group = "Base - no glosses") %>%
@@ -7379,7 +7605,7 @@ server <- function(input, output, session) {
           fillColor = ~pal_V2025_complete(`V2025_complete`),
           weight = 2, opacity = 0.1, color = "white", dashArray = "3",
           fillOpacity = 0.7,
-          label = ~map(V2025_countries$country_labels, HTML),
+          label = ~purrr::map(V2025_countries$country_labels, HTML),
           labelOptions = labelOptions(
             style = list("font-weight" = "normal",
                          padding = "3px 8px",
@@ -7392,7 +7618,7 @@ server <- function(input, output, session) {
           fillColor = ~pal_one_remaining(`one_remaining`),
           weight = 2, opacity = 0.1, color = "white", dashArray = "3",
           fillOpacity = 0.7,
-          label = ~map(V2025_countries$country_labels, HTML),
+          label = ~purrr::map(V2025_countries$country_labels, HTML),
           labelOptions = labelOptions(
             style = list("font-weight" = "normal",
                          padding = "3px 8px",
@@ -7406,7 +7632,7 @@ server <- function(input, output, session) {
           fillColor = ~pal_V2025_buckets(`V2025_bucket`),
           weight = 2, opacity = 0.1, color = "white", dashArray = "3",
           fillOpacity = 0.7,
-          label = ~map(V2025_countries$country_labels, HTML),
+          label = ~purrr::map(V2025_countries$country_labels, HTML),
           labelOptions = labelOptions(
             style = list("font-weight" = "normal",
                          padding = "3px 8px",
@@ -7420,7 +7646,7 @@ server <- function(input, output, session) {
           fillColor = ~pal_AAG_all_met(`All Access goals met`),
           weight = 2, opacity = 0.1, color = "white", dashArray = "3",
           fillOpacity = 0.7,
-          label = ~map(all_access_countries$country_labels, HTML),
+          label = ~purrr::map(all_access_countries$country_labels, HTML),
           labelOptions = labelOptions(
             style = list("font-weight" = "normal",
                          padding = "3px 8px",
@@ -7434,7 +7660,7 @@ server <- function(input, output, session) {
           fillColor = ~pal_one_unmet(`1 unmet goal`),
           weight = 2, opacity = 0.1, color = "white", dashArray = "3",
           fillOpacity = 0.7,
-          label = ~map(all_access_countries$country_labels, HTML),
+          label = ~purrr::map(all_access_countries$country_labels, HTML),
           labelOptions = labelOptions(
             style = list("font-weight" = "normal",
                          padding = "3px 8px",
@@ -7448,7 +7674,7 @@ server <- function(input, output, session) {
           fillColor = ~pal_all_access_buckets(`all_access_bucket`),
           weight = 2, opacity = 0.1, color = "white", dashArray = "3",
           fillOpacity = 0.7,
-          label = ~map(all_access_countries$country_labels, HTML),
+          label = ~purrr::map(all_access_countries$country_labels, HTML),
           labelOptions = labelOptions(
             style = list("font-weight" = "normal",
                          padding = "3px 8px",
@@ -7685,8 +7911,8 @@ server <- function(input, output, session) {
                          radius = 4,
                          weight = 5,
                          opacity = 0.9,
-                         popup = ~map(data$html_popup_text, HTML),
-                         label = ~map(data$html_label_static, HTML),
+                         popup = ~purrr::map(data$html_popup_text, HTML),
+                         label = ~purrr::map(data$html_label_static, HTML),
                          labelOptions = labelOptions(
                            textOnly = TRUE,
                            noHide = TRUE,
@@ -7710,8 +7936,8 @@ server <- function(input, output, session) {
                          radius = 2,
                          weight = 5,
                          opacity = 0.9,
-                         popup = ~map(data$html_popup_text, HTML),
-                         label = ~map(data$html_label_static, HTML),
+                         popup = ~purrr::map(data$html_popup_text, HTML),
+                         label = ~purrr::map(data$html_label_static, HTML),
                          clusterOptions = NULL,
                          group = "Languages - markers only",
                          color = ~marker_palette(data[[status_type_selected()]]))
@@ -7733,11 +7959,17 @@ server <- function(input, output, session) {
     })
 
     langMap_reactive <- reactive({
+        input$selected_countries
+
         curated_table <- selected_status_data()
-        lng1 <- curated_table$Longitude %>% max(na.rm = TRUE) |> suppressWarnings()
-        lng2 <- curated_table$Longitude %>% min(na.rm = TRUE) |> suppressWarnings()
-        lat1 <- curated_table$Latitude %>% max(na.rm = TRUE) |> suppressWarnings()
-        lat2 <- curated_table$Latitude %>% min(na.rm = TRUE) |> suppressWarnings()
+        sel_countries <- curated_table$Country |> unique()
+        map_params <- calculate_map_bounds(sel_countries)
+        # Calculate appropriate zoom level
+        zoom_level <- calculate_zoom_level(map_params$bounds)
+        # lng1 <- curated_table$Longitude %>% max(na.rm = TRUE) |> suppressWarnings()
+        # lng2 <- curated_table$Longitude %>% min(na.rm = TRUE) |> suppressWarnings()
+        # lat1 <- curated_table$Latitude %>% max(na.rm = TRUE) |> suppressWarnings()
+        # lat2 <- curated_table$Latitude %>% min(na.rm = TRUE) |> suppressWarnings()
         color_values <- selected_status_palette()$status_value
         color_palette <- selected_status_palette()$color
         marker_palette <- colorFactor(palette = color_palette,
@@ -7756,7 +7988,15 @@ server <- function(input, output, session) {
 
         map <- leaflet(
             # data = curated_table,
-            options = leafletOptions(preferCanvas = FALSE)) %>%
+            # options = leafletOptions(preferCanvas = FALSE)) %>%
+            # options = leafletOptions(preferCanvas = FALSE,
+            #                          worldCopyJump = FALSE,  # Prevents map wrapping
+            #                          minZoom = 2,
+            #                          maxZoom = 10)) %>%
+            options = leafletOptions(preferCanvas = TRUE,
+                                     worldCopyJump = FALSE,
+                                     minZoom = 3,
+                                     maxZoom = 12)) %>%
             # options = leafletOptions(preferCanvas = TRUE)) %>%
 
             addTiles(group = "Base - no glosses") %>%
@@ -7848,8 +8088,8 @@ server <- function(input, output, session) {
                            radius = 4,
                            weight = 5,
                            opacity = 0.9,
-                           popup = ~map(curated_table$html_popup_text, HTML),
-                           label = ~map(curated_table$html_label_static, HTML),
+                           popup = ~purrr::map(curated_table$html_popup_text, HTML),
+                           label = ~purrr::map(curated_table$html_label_static, HTML),
                            labelOptions = labelOptions(
                               textOnly = TRUE,
                               noHide = TRUE,
@@ -7872,8 +8112,8 @@ server <- function(input, output, session) {
                            radius = 2,
                            weight = 5,
                            opacity = 0.9,
-                           popup = ~map(curated_table$html_popup_text, HTML),
-                           label = ~map(curated_table$html_label_static, HTML),
+                           popup = ~purrr::map(curated_table$html_popup_text, HTML),
+                           label = ~purrr::map(curated_table$html_label_static, HTML),
                            # labelOptions = labelOptions(
                            #   textOnly = TRUE,
                            #   noHide = TRUE,
@@ -7897,8 +8137,8 @@ server <- function(input, output, session) {
           #                  radius = 2,
           #                  weight = 4,
           #                  opacity = 0.9,
-          #                  popup = ~map(curated_table$html_popup_text, HTML),
-          #                  label = ~map(curated_table$html_label_static, HTML),
+          #                  popup = ~purrr::map(curated_table$html_popup_text, HTML),
+          #                  label = ~purrr::map(curated_table$html_label_static, HTML),
           #                  labelOptions = labelOptions(
           #                    textOnly = TRUE,
           #                    noHide = TRUE,
@@ -7978,10 +8218,21 @@ server <- function(input, output, session) {
           #   minimized = TRUE
           # ) %>%
 
-          fitBounds(lng1 = lng1,
-                    lng2 = lng2,
-                    lat1 = lat1,
-                    lat2 = lat2)
+          setView(lng = map_params$center$lng,
+                  lat = map_params$center$lat,
+                  zoom = zoom_level)
+        # %>%
+        #   setMaxBounds(
+        #     lng1 = map_params$bounds$lng1,
+        #     lng2 = map_params$bounds$lng2,
+        #     lat1 = map_params$bounds$lat1,
+        #     lat2 = map_params$bounds$lat2
+        #   )
+
+          # fitBounds(lng1 = lng1,
+          #           lng2 = lng2,
+          #           lat1 = lat1,
+          #           lat2 = lat2)
 
         map
     })

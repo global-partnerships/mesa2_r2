@@ -10,14 +10,7 @@ get_appended_download_df <- function(df) {
   return(out)
 }
 
-  # out <- get_appended_download_df(lang_coords_df)
-  #
-  # filename <- paste0("Mesa_export_", today())
-  #
-  # write_csv(out, filename, col_names = FALSE, na = "")
-
 aa_hist_transformations <- function(df) {
-  # print(names(df))
   df <- df |>
     rename(`AA Goal Met` = `A A Goal Met`,
            `Prior AA Status` = `Prior A A Status`)
@@ -40,14 +33,10 @@ aa_hist_transformations <- function(df) {
     mutate('AAG pct chapters remaining' = ifelse(`AAG chapters` == `AAG chapters remaining`, 1, 0))
 
   return(out)
-  # out2 <- out |>
-  #   fix_names()
-  #
-  # return(out2)
 }
 
+
 main_rows_transformations <- function(df) {
-  # print(names(df))
   out <- df |>
     mutate(`Is Sign Language` = factor(`Is Sign Language`, levels = c("Yes", "No"))) %>%
     mutate(`Is Remaining V2025 Need` = factor(`Is Remaining V2025 Need`, levels = c("Yes", "No"))) %>%
@@ -55,7 +44,12 @@ main_rows_transformations <- function(df) {
     # mutate(`In The Circle` = factor(`In The Circle`, levels = c("Yes", "No"))) %>%
     mutate(`Translation Status` = as.factor(str_replace_na(.$`Translation Status`, replacement = "Not available"))) %>%
     mutate(`All Access Goal` = as.factor(str_replace_na(.$`All Access Goal`, replacement = "Not available"))) %>%
-    left_join(missing_SL_coords) |>
+    left_join(missing_SL_coords, by = "Language Code") |>
+    mutate(
+      Latitude = coalesce(Latitude.x, Latitude.y),
+      Longitude = coalesce(Longitude.x, Longitude.y)
+    ) |>
+    select(-ends_with(".x"), -ends_with(".y")) |>
     mutate(`AAG chapters` = case_when(
       `All Access Goal` == '25 Chapters' ~ 25,
       `All Access Goal` == 'NT / 260 Chapters' ~ 260,
