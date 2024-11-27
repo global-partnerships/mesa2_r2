@@ -728,8 +728,9 @@ ui <-
                 fluidRow(
                   column(width = 12,
                          leafletOutput("langMap1", height = 600) |>
-                           jqui_resizable() |>
                            shinycssloaders::withSpinner(type = 5)
+                         # leafletOutput("langMap1", height = 600) |>
+                         #   jqui_resizable()
                          ),
                          column(
                            width = 4,
@@ -6367,8 +6368,7 @@ server <- function(input, output, session) {
                   input$btn_send_to_RT
                   ,ignoreInit = TRUE)
 
-  observeEvent(input$btn_clear_search,
-    { # bound to input$btn_clear_search
+  observe({ # bound to input$btn_clear_search
       prior_context <- values$prior_context
 
       if (is.null(prior_context)) {
@@ -6419,7 +6419,7 @@ server <- function(input, output, session) {
       }
 
       clearSearch(RT_proxy)
-  })
+  }) |> bindEvent(input$btn_clear_search, input$selected_countries)
 
   # this resets val_iso_search to FALSE whenever selected countries are changed
   # observe({ # bound to input$selected_countries
@@ -7361,8 +7361,10 @@ server <- function(input, output, session) {
         curr_rt_df <- main_rows_reactive()[curr_rt_row_indices, ]
       }
       curr_langs <- curr_rt_df$`Language Code`
-      data <- maps_table |> filter(`Language Code` %in% curr_langs) |>
-        filter(.data[[status_type_selected()]] %in% input$selected_status_levels) %>%
+
+      data <- maps_table |>
+        filter(`Language Code` %in% curr_langs) |>
+        filter(.data[[status_type_selected()]] %in% input$selected_status_levels)
 
       # out <- maps_table %>%
       #   filter(.data[[status_type_selected()]] %in% input$selected_status_levels) %>%
@@ -7945,7 +7947,11 @@ server <- function(input, output, session) {
     }) |> bindEvent(input$btn_send2langMap)
 
     output$langMap1 <- renderLeaflet({
-      langMap_reactive()
+      langMap_reactive() |>
+        jqui_resizable()
+      # langMap_reactive()
+      # langMap_reactive() |>
+      #   shinycssloaders::withSpinner(type = 5)
     })
 
     selected_map_rows <- reactive({
@@ -7959,8 +7965,7 @@ server <- function(input, output, session) {
     })
 
     langMap_reactive <- reactive({
-        input$selected_countries
-
+      req(input$selected_countries)
         curated_table <- selected_status_data()
         sel_countries <- curated_table$Country |> unique()
         map_params <- calculate_map_bounds(sel_countries)
