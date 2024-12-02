@@ -828,8 +828,8 @@ ui <-
 
 server <- function(input, output, session) {
 
-  all_cookies <- extract_cookies(session$request)
-  print(all_cookies)
+  # all_cookies <- extract_cookies(session$request)
+  # print(all_cookies)
 
   # shinyjs::showLog()
 
@@ -1731,7 +1731,7 @@ server <- function(input, output, session) {
 #   })
 
   get_countries <- reactive({
- print("@get_countries")
+ # print("@get_countries")
     selected = get_cookie(
       cookie_name = "sel_countries",
       # missing = character(0),
@@ -1743,7 +1743,7 @@ server <- function(input, output, session) {
   })
 
   observe({ # bound to input$selected_areas
-print("@observer for input$selected_areas")
+# print("@observer for input$selected_areas")
       value <- input$selected_areas |> str_c(collapse = "@@")
       set_cookie("sel_areas",
         cookie_value = value
@@ -1817,15 +1817,15 @@ print("@observer for input$selected_areas")
   # })
 
   observe({
-  print("@ observeEvent(input$selected_countries")
+  # print("@ observeEvent(input$selected_countries")
       # req(input$selected_countries)
       value <- input$selected_countries |>
         str_c(collapse = "@@")
       set_cookie("sel_countries",
         cookie_value = value)
       values$val_db_search = FALSE
-      out <- get_cookie("sel_countries")
-      print(out)
+      # out <- get_cookie("sel_countries")
+      # print(out)
 
       # curr_countries <- input$selected_countries |>
       #   str_c(collapse = "@@")
@@ -2160,7 +2160,7 @@ print("@observer for input$selected_areas")
   # })
 
   lang_codes <- reactive({
-    print("@ top of lang_codes()")
+    # print("@ top of lang_codes()")
     req(input$selected_countries)
     # input$selected_countries
     # values$val_hist_search
@@ -2172,9 +2172,9 @@ print("@observer for input$selected_areas")
     # collections_load <- values$val_collections_load
     shares_load <- values$val_shares_load
 
-    print(paste0("iso_search = ", iso_search))
-    print(paste0("hist_search = ", hist_search))
-    print(paste0("db_search = ", db_search))
+    # print(paste0("iso_search = ", iso_search))
+    # print(paste0("hist_search = ", hist_search))
+    # print(paste0("db_search = ", db_search))
     # print(curr_db_lang_names)
 
     if (iso_search) {
@@ -2198,10 +2198,10 @@ print("@observer for input$selected_areas")
     #     pull(`Language Code`)
     #   curr_db_lang_names <- NULL
     } else {
-      print('@ lang_codes else')
+      # print('@ lang_codes else')
       country_codes <- countries_selected()$`Country Code` %>%
         unique()
-      print(country_codes)
+      # print(country_codes)
       iso_codes <- main_rows %>%
         filter(`Country Code` %in% country_codes) %>%
         pull(`Language Code`) %>%
