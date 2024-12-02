@@ -828,6 +828,9 @@ ui <-
 
 server <- function(input, output, session) {
 
+  all_cookies <- extract_cookies(session$request)
+  print(all_cookies)
+
   # shinyjs::showLog()
 
   date_Vision2025 <- "2025-12-31 23:59:59 GMT"
@@ -1728,7 +1731,7 @@ server <- function(input, output, session) {
 #   })
 
   get_countries <- reactive({
-#  print("@get_countries")
+ print("@get_countries")
     selected = get_cookie(
       cookie_name = "sel_countries",
       # missing = character(0),
@@ -1739,9 +1742,8 @@ server <- function(input, output, session) {
     return(selected)
   })
 
-  observeEvent(input$selected_areas,
-    {
-#  print("@observeEvent(input$selected_areas")
+  observe({ # bound to input$selected_areas
+print("@observer for input$selected_areas")
       value <- input$selected_areas |> str_c(collapse = "@@")
       set_cookie("sel_areas",
         cookie_value = value
@@ -1750,21 +1752,18 @@ server <- function(input, output, session) {
       choices = country_choices()
       selected <- get_countries()
 
+      set_cookie("sel_countries",
+                 cookie_value = choices |> str_c(collapse = "@@")
+      )
+
       updateSelectInput(
         session = session,
         inputId = "selected_countries",
         choices = choices,
         selected = selected
-        # selected = get_cookie(
-        #   cookie_name = "sel_countries",
-        #   missing = character(0),
-        #   # missing = NULL,
-        #   # missing = "Papua New Guinea",
-        #   session = shiny::getDefaultReactiveDomain()
-        # ) |> str_split_1("@@")
       )
     }
-  )
+  ) |> bindEvent(input$selected_areas)
 
   output$link_select_all_areas <- renderUI({
     actionLink("select_all_areas", "Select/unselect all")
@@ -1794,7 +1793,8 @@ server <- function(input, output, session) {
   })
 
   output$countries <- renderUI({
-    choices <- country_choices()
+    choices <- isolate(country_choices())
+    # choices <- country_choices()
     selected <- isolate(get_countries())
     # selected <- get_countries()
 
@@ -1816,14 +1816,16 @@ server <- function(input, output, session) {
   #   ) |> str_split_1("@@")
   # })
 
-  observeEvent(input$selected_countries,
-    {
+  observe({
+  print("@ observeEvent(input$selected_countries")
       # req(input$selected_countries)
       value <- input$selected_countries |>
         str_c(collapse = "@@")
       set_cookie("sel_countries",
         cookie_value = value)
+      values$val_db_search = FALSE
       out <- get_cookie("sel_countries")
+      print(out)
 
       # curr_countries <- input$selected_countries |>
       #   str_c(collapse = "@@")
@@ -1831,7 +1833,7 @@ server <- function(input, output, session) {
       # if(curr_countries != stored_countries){
       #   set_cookie("sel_countries", cookie_value = curr_countries)
       # }
-    })
+    }) |> bindEvent(input$selected_countries)
 
   output$link_select_all_countries <- renderUI({
     actionLink("select_all_countries", "Select/unselect all")
@@ -2158,6 +2160,8 @@ server <- function(input, output, session) {
   # })
 
   lang_codes <- reactive({
+    print("@ top of lang_codes()")
+    req(input$selected_countries)
     # input$selected_countries
     # values$val_hist_search
     curr_db_lang_names <- values$curr_db_lang_names
@@ -2167,6 +2171,11 @@ server <- function(input, output, session) {
     collections_load <- isolate(values$val_collections_load)
     # collections_load <- values$val_collections_load
     shares_load <- values$val_shares_load
+
+    print(paste0("iso_search = ", iso_search))
+    print(paste0("hist_search = ", hist_search))
+    print(paste0("db_search = ", db_search))
+    # print(curr_db_lang_names)
 
     if (iso_search) {
       iso_codes <- input$textArea_lang_codes %>%
@@ -2180,16 +2189,19 @@ server <- function(input, output, session) {
       curr_db_tbl_row_indices <- input$table_dashboard_langs_rows_all
       iso_codes <- dashboard_langs_df()[curr_db_tbl_row_indices, ] |>
         pull(`Language Code`)
-    } else if (!is.null(curr_db_lang_names)){
-      col_filters <- input$table_dashboard_langs_search_columns
-      # print(paste0("col_filters: ", str_c(col_filters, collapse = "; ")))
-      iso_codes <- main_rows |>
-        filter(`Language Name` %in% curr_db_lang_names) |>
-        pull(`Language Code`)
-      curr_db_lang_names <- NULL
+      # values$val_db_search = FALSE
+    # } else if (!is.null(curr_db_lang_names)){
+    #   col_filters <- input$table_dashboard_langs_search_columns
+    #   # print(paste0("col_filters: ", str_c(col_filters, collapse = "; ")))
+    #   iso_codes <- main_rows |>
+    #     filter(`Language Name` %in% curr_db_lang_names) |>
+    #     pull(`Language Code`)
+    #   curr_db_lang_names <- NULL
     } else {
+      print('@ lang_codes else')
       country_codes <- countries_selected()$`Country Code` %>%
         unique()
+      print(country_codes)
       iso_codes <- main_rows %>%
         filter(`Country Code` %in% country_codes) %>%
         pull(`Language Code`) %>%
@@ -2200,6 +2212,17 @@ server <- function(input, output, session) {
     # values$val_hist_search <- FALSE
     return(iso_codes)
   })
+  # }) |> bindCache(
+  #   input$selected_countries,
+  #   input$textArea_lang_codes,
+  #   values$val_iso_search,
+  #   values$val_hist_search,
+  #   values$val_db_search,
+  #   # values$curr_db_lang_names,
+  #   values$hist_langs,
+  #   input$table_dashboard_langs_rows_all,
+  #   input$table_dashboard_langs_search_columns
+  # )
 
 #   observeEvent(lang_codes(), {
 #     sel_rows <- values$val_RT_rows_selected
@@ -3190,7 +3213,7 @@ server <- function(input, output, session) {
       df
     }
 
-    values$curr_db_lang_names <- df$`Language Name`
+    # values$curr_db_lang_names <- df$`Language Name`
 
     return(df)
 
@@ -3435,10 +3458,11 @@ server <- function(input, output, session) {
   })
 
   observe({
-    values$val_db_search <- FALSE
-    # values$val_db_search <- TRUE
+    # values$val_db_search <- FALSE
+    values$val_db_search <- TRUE
     values$val_hist_search <- FALSE
     values$val_iso_search <- FALSE
+    # values$curr_db_lang_names <- df$`Language Name`
     updateTabsetPanel(session, "main_page_tabset", selected = "table_builder")
     # updateTabsetPanel(session, "main_page_tabset", selected = "Research Table Builder")
   }) |> bindEvent(input$btn_send_db_langs_2_RT, ignoreInit = TRUE)
@@ -6400,26 +6424,21 @@ server <- function(input, output, session) {
                         inputId = "partner",
                         selected = prior_context %>%
                           pull(partner))
-                          # pull(partner) |> str_split_1("@@"))
-                          # pull(partner) |> str_c(collapse = "@@"))
       updateSelectInput(session = session,
                         inputId = "selected_areas",
                         selected = prior_context %>%
                           pull(areas))
-                          # pull(partner) |> str_split_1("@@"))
-                          # pull(partner) |> str_c(collapse = "@@"))
       if ("countries" %in% names(prior_context)) {
         updateSelectInput(session = session,
                           inputId = "selected_countries",
                           choices = country_choices(),
                           selected = prior_context %>%
                             pull(countries) |> str_split_1("@@"))
-                            # pull(partner) |> str_split_1("@@"))
-                            # pull(partner) |> str_c(collapse = "@@"))
       }
 
       clearSearch(RT_proxy)
-  }) |> bindEvent(input$btn_clear_search, input$selected_countries)
+  }) |> bindEvent(input$btn_clear_search)
+  # }) |> bindEvent(input$btn_clear_search, input$selected_countries)
 
   # this resets val_iso_search to FALSE whenever selected countries are changed
   # observe({ # bound to input$selected_countries
@@ -7947,9 +7966,9 @@ server <- function(input, output, session) {
     }) |> bindEvent(input$btn_send2langMap)
 
     output$langMap1 <- renderLeaflet({
-      langMap_reactive() |>
-        jqui_resizable()
-      # langMap_reactive()
+      # langMap_reactive() |>
+      #   jqui_resizable()
+      langMap_reactive()
       # langMap_reactive() |>
       #   shinycssloaders::withSpinner(type = 5)
     })
