@@ -1026,23 +1026,24 @@ server <- function(input, output, session) {
 
   # ***** data imports from Google Drive ********
 
-  user <- if (is.null(session$user)) {
+  gp_app_users <- get_gp_app_users()
+  mesa_users <- get_mesa_users(gp_app_users)
+
+  user <- session$user
+  print(user)
+
+  user <- if (is.null(user) || !user %in% mesa_users$email) {
   # user <<- if (is.null(session$user)) {
-    # "janet.luigjes@wycliffe.nl"
+    "Guest@partnerships.global"
     # "gary_sikma@wycliffe.org"
     # "morris_johnson@wycliffe.org"
-    "Guest@partnerships.global"
-    # "gail_nelson@wycliffe.org"
-    # "aaron_joseph@sil.org"
   } else {
-    session$user |> tolower()
+    user |> tolower()
   }
 
   start_date_time <<- Sys.time()
 
   # *** only for shinyapps.io version ***
-  gp_app_users <- get_gp_app_users()
-  mesa_users <- get_mesa_users(gp_app_users)
   # user_info <<- get_user_info(mesa_users, user)
   user_info <- get_user_info(mesa_users, user)
 
