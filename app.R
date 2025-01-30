@@ -346,7 +346,8 @@ ui <-
         # style="text-align:center",
         # style="margin-bottom: 0px",
         a("Provide input to ProgressBible",
-          href = "https://docs.google.com/document/d/1mGchdGTjRhohSC1vBS84JLeHHoVNcRsUagXmq0dSQio/edit",
+          href = "https://docs.google.com/document/d/1mGchdGTjRhohSC1vBS84JLeHHoVNcRsUagXmq0dSQio/view",
+          # href = "https://docs.google.com/document/d/1mGchdGTjRhohSC1vBS84JLeHHoVNcRsUagXmq0dSQio/edit",
           target = "_blank")
       )
     ),
@@ -707,8 +708,9 @@ ui <-
                         # style="text-align:center",
                         style="margin-bottom: 0px",
                         a("Provide input to ProgressBible",
-                          href = "https://docs.google.com/document/d/1mGchdGTjRhohSC1vBS84JLeHHoVNcRsUagXmq0dSQio/edit",
-                                      target = "_blank")
+                          href = "https://docs.google.com/document/d/1mGchdGTjRhohSC1vBS84JLeHHoVNcRsUagXmq0dSQio/view",
+                          # href = "https://docs.google.com/document/d/1mGchdGTjRhohSC1vBS84JLeHHoVNcRsUagXmq0dSQio/edit",
+                          target = "_blank")
                       )
                     )
                   )
@@ -1237,6 +1239,7 @@ server <- function(input, output, session) {
   # load cached data files
   #################################################################################
 
+  # mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), "data_test/sql_db/mesa.sqlite")
   mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), "data/sql_db/mesa.sqlite")
   tbl_list <- DBI::dbListTables(mesa_sql_con)
 
@@ -1261,6 +1264,7 @@ server <- function(input, output, session) {
   get_all_snapshot_dates <- function(ds_name) {
     # print("@ get_all_snapshot_dates")
     ds_name <- "pb_main_ds"
+    # source <- paste0("data_test/datasets/", ds_name)
     source <- paste0("data/datasets/", ds_name)
     # print(paste0("ds source = ", source))
 
@@ -1406,6 +1410,8 @@ server <- function(input, output, session) {
   main_rows <- main_rows |>
     left_join(gp_areas)
   # print("done")
+
+  WIP_rows_all <- get_df_feather("WIP_data")
 
   WIP_rows_all <- get_df_feather("WIP_data") %>%
     mutate(`Dialect Code` = as.character(`Dialect Code`))
