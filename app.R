@@ -1165,10 +1165,6 @@ server <- function(input, output, session) {
     mutate(`Country Code` = `Country Code` |> str_replace_na()) |>  #needed for Namibia (NA)
     select(-Area2, -Area3)
 
-  fips_lookup <- combined_partner_areas |>
-    filter(Partner == "Global Partnerships") |>
-    select(`Country Code`, `FIPS Code`)
-
   country_code_lookup <- combined_partner_areas |>
     filter(Partner == "Global Partnerships") |>
     select(`Country Code`, `Country`)
@@ -3790,6 +3786,7 @@ server <- function(input, output, session) {
               ,cell = function(value, index) {
                 snap_date <- year_details$SnapshotDate[[index]]
                 langs <- year_details$Removed_Langs[[index]]
+            # print(paste0(snap_date, ": (", if_else(is.na(langs),0,length(str_split_1(langs, ", "))),") ", langs))
                 htmltools::div(
                   style = "cursor: pointer; color: blue; text_decoration-line: underline;",
                   id = paste0(snap_date,"_Removed"),
