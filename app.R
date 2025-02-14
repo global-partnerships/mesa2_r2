@@ -810,11 +810,6 @@ ui <-
                     tabPanel(title = "ProgressBible Field Definitions",
                              id = "pb_field_defs",
                              DTOutput("pb_field_defs")),
-                    tabPanel(title = "WCD Abbreviations",
-                             id = "wcd_abbr",
-                             tags$iframe(height="1200", width="1600",
-                                         src="Abbreviations.pdf",
-                                         name=date())),
                     tabPanel(title = "Release notes",
                              id = "release_notes",
                              pre(includeText("data/assets/release-notes.txt")))
@@ -1449,10 +1444,6 @@ server <- function(input, output, session) {
   main_rows <- main_rows |>
     left_join(SP_summaries, by = "Language Code")
 
-  WCD_rows <- get_df_feather("wcd_report") %>%
-    select(-`Ethnic Region`) |>
-    select(-etl_timestamp)
-
   ROLV_rows <- get_df_feather("rolv_varieties") |>
     select(-etl_timestamp)
 
@@ -1501,7 +1492,7 @@ server <- function(input, output, session) {
   maps_table <- main_rows %>%
     select(Country, `Country Code`, `Language Name`, `Language Code`,
            `Is Sign Language`, `Translation Status`, `All Access Status`, `Is Remaining V2025 Need`, `On All Access List`,
-           `EGIDS Group`, `Org Engagements (WIP)`,`Denominations (WCD)`, `Agencies (WCD)`,  `See Joshua Project`,
+           `EGIDS Group`, `Org Engagements (WIP)`, `See Joshua Project`,
            `All Access Goal Met`, Latitude, Longitude, rowID) %>%
     mutate(html_popup_text =   paste("<div style=width: 20%; display: inline-block; wordwrap: break-word; >",
                                      "<h5>",`Language Name`,"</h5>",
@@ -1510,8 +1501,6 @@ server <- function(input, output, session) {
                                      "<li><strong>All Access Status: </strong>",`All Access Status`,"</li>",
                                      "<li><strong>EGIDS Group: </strong>", `EGIDS Group`, "</li>",
                                      "<li><strong>Org Engagements: </strong>", `Org Engagements (WIP)`, "</li>",
-                                     "<li><strong>Denominations: </strong>", `Denominations (WCD)`, "</li>",
-                                     "<li><strong>Agencies: </strong>", `Agencies (WCD)`, "</li>",
                                      "<li><strong>See Joshua Project: </strong>", `See Joshua Project`, "</li>",
                                      "</ul>",
                                      "</div>")) %>%
@@ -2328,8 +2317,7 @@ server <- function(input, output, session) {
       # filter(Area %in% selected_areas) %>%
       select(`Country Code`, `Language Code`, `Language Name`,
              `Translation Status`, `All Access Status`, `Is Remaining V2025 Need`, `On All Access List`,
-             `EGIDS Group`, `Org Engagements (WIP)`, `Denominations (WCD)`, `Agencies (WCD)`,
-             `See Joshua Project`, Longitude, Latitude) %>%
+             `EGIDS Group`, `Org Engagements (WIP)`, `See Joshua Project`, Longitude, Latitude) %>%
       filter(`Country Code` %in% input$selected_countries) |>
       mutate(html_popup_text =   paste("<div style=width: 20%; display: inline-block; wordwrap: break-word; >",
                                        "<h5>",`Language Name`,"</h5>",
@@ -2338,8 +2326,6 @@ server <- function(input, output, session) {
                                        "<li><strong>All Access Status: </strong>",`All Access Status`,"</li>",
                                        "<li><strong>EGIDS Group: </strong>", `EGIDS Group`, "</li>",
                                        "<li><strong>Org Engagements: </strong>", `Org Engagements (WIP)`, "</li>",
-                                       "<li><strong>Denominations: </strong>", `Denominations (WCD)`, "</li>",
-                                       "<li><strong>Agencies: </strong>", `Agencies (WCD)`, "</li>",
                                        "<li><strong>See Joshua Project: </strong>", `See Joshua Project`, "</li>",
                                        "</ul>",
                                        "</div>"))
@@ -6817,7 +6803,6 @@ server <- function(input, output, session) {
       "shared_collections" = shared_coll_rows() |>
         filter(str_detect(Languages, paste0('(', str_c(details_lang_codes, collapse = "|"),')'))),
       "SP" = filter(SP_rows, `Language Code` %in% details_lang_codes),
-      "WCD" = filter(WCD_rows, `Language Code` %in% details_lang_codes),
       "ROLV" = filter(ROLV_rows, `Language Code` %in% details_lang_codes)
       # ,
       # "Ethnologue" = filter(Ethnologue_rows, `Language Code` %in% details_lang_codes)
@@ -6828,7 +6813,6 @@ server <- function(input, output, session) {
       "alt_names" = nested_tables_list$alt_names %>% nrow(),
       "shared_collections" = nested_tables_list$shared_collections |> nrow(),
       "SP" = nested_tables_list$SP %>% nrow(),
-      "WCD" = nested_tables_list$WCD %>% nrow(),
       "ROLV" = nested_tables_list$ROLV %>% nrow()
       # ,
       # "Ethnologue" = nested_tables_list$Ethnologue %>% nrow()
@@ -6839,7 +6823,6 @@ server <- function(input, output, session) {
       "alt_names" = "Alternate Language Names",
       "shared_collections" = "Shared Language Collections",
       "SP" = "Scripture Products",
-      "WCD" = "World Christian Database",
       "ROLV" = "Registry of Language Varieties"
     )
 
@@ -6906,22 +6889,6 @@ server <- function(input, output, session) {
                            }
                          }
                 ),
-                tabPanel(value = "WCD",
-                         title = paste("World Christian Database (", nested_tables_nrows$WCD, ")"),
-                        {
-                          # data <- get_details_data("WCD", nested_tables_df)
-                          data = nested_tables_df %>%
-                            filter(id == "WCD") %>%
-                            unnest(cols = c(data)) %>%
-                            select(-id, -tab_label, -nrows, -`Language Code`)
-                          rowCount = nested_tables_df %>% filter(id == "WCD") %>% pull(nrows)
-                          if(rowCount != 0) {
-                            get_DT_details_obj(data)
-                          } else {
-                            "No data"
-                          }
-                        }
-                ),
                 tabPanel(value = "ROLV",
                          title = paste("Registry of Language Varieties (", nested_tables_nrows$ROLV, ")"),
                          {
@@ -6975,9 +6942,6 @@ server <- function(input, output, session) {
           sp <- SP_rows %>%
               filter(`Language Code` %in% selected_languages)
 
-          wcd <- WCD_rows %>%
-              filter(`Language Code` %in% selected_languages)
-
           rolv <-  ROLV_rows %>%
               filter(`Language Code` %in% selected_languages)
 
@@ -6987,7 +6951,6 @@ server <- function(input, output, session) {
           ss_list <- list("Main table" = main_table,
                           "Work in Progress" = wip,
                           "Scripture Products" = sp,
-                          "World Christian Database" = wcd,
                           "Registry of Language Varieties" = rolv)
           # ,
           #                 "Ethnologue" = eth)
@@ -7032,9 +6995,6 @@ server <- function(input, output, session) {
         sp <- SP_rows %>%
           filter(`Language Code` %in% selected_languages)
 
-        wcd <- WCD_rows %>%
-            filter(`Language Code` %in% selected_languages)
-
         rolv <-  ROLV_rows %>%
             filter(`Language Code` %in% selected_languages)
 
@@ -7043,7 +7003,6 @@ server <- function(input, output, session) {
 
         ss_list <- list("Main table" = main_table,
                         "Work in Progress" = wip,
-                        "World Christian Database" = wcd,
                         "Registry of Language Varieties" = rolv)
         # ,
         #                 "Ethnologue" = eth)
@@ -8616,16 +8575,12 @@ server <- function(input, output, session) {
     nested_tables_list <- list(
       "WIP" = filter(WIP_rows, `Language Code` %in% details_lang_codes),
       "SP" = filter(SP_rows, `Language Code` %in% details_lang_codes),
-      "WCD" = filter(WCD_rows, `Language Code` %in% details_lang_codes),
       "ROLV" = filter(ROLV_rows, `Language Code` %in% details_lang_codes)
-      # ,
-      # "Ethnologue" = filter(Ethnologue_rows, `Language Code` %in% details_lang_codes)
     )
 
     nested_tables_nrows <- list(
       "WIP" = nested_tables_list$WIP %>% nrow(),
       "SP" = nested_tables_list$SP %>% nrow(),
-      "WCD" = nested_tables_list$WCD %>% nrow(),
       "ROLV" = nested_tables_list$ROLV %>% nrow()
       # ,
       # "Ethnologue" = nested_tables_list$Ethnologue %>% nrow()
@@ -8634,7 +8589,6 @@ server <- function(input, output, session) {
     nested_tables_name <- list(
       "WIP" = "Work in Progress",
       "SP" = "Scripture Products",
-      "WCD" = "World Christian Database",
       "ROLV" = "Registry of Language Varieties"
       # ,
       # "Ethnologue" = "Ethnologue"
@@ -8687,29 +8641,6 @@ server <- function(input, output, session) {
                              #             unnest(cols = c(data)) %>%
                              #             select(-id, -tab_label, -nrows))
                              # reactable(data = filter(SP_rows, `Language Code` == lang_code),
-                             #           fullWidth = TRUE)
-                           } else {
-                             "No data"
-                           }
-                         }
-                ),
-
-                tabPanel(value = "WCD",
-                         title = paste("World Christian Database (", nested_tables_nrows$WCD, ")"),
-                         {
-                           # data <- get_details_data("WCD", nested_tables_df)
-                           data = nested_tables_df %>%
-                             filter(id == "WCD") %>%
-                             unnest(cols = c(data)) %>%
-                             select(-id, -tab_label, -nrows, -`Language Code`)
-                           rowCount = nested_tables_df %>% filter(id == "WCD") %>% pull(nrows)
-                           if(rowCount != 0) {
-                             get_DT_details_obj(data)
-                             # datatable(data = nested_tables_df %>%
-                             #             filter(id == "WCD") %>%
-                             #             unnest(cols = c(data)) %>%
-                             #             select(-id, -tab_label, -nrows))
-                             # reactable(data = filter(WCD_rows, `Language Code` == lang_code),
                              #           fullWidth = TRUE)
                            } else {
                              "No data"
