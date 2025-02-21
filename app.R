@@ -5845,10 +5845,6 @@ server <- function(input, output, session) {
       rename(any_of(names_to_simplify)) %>%
       select(-`Country Code`)
 
-# str(df)
-
-    # values$summary_tbl_data <- df
-
     # *** colDef selection for table columns argument ***
 
     col_def_defaults <-  list(
