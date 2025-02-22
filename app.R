@@ -2495,7 +2495,12 @@ server <- function(input, output, session) {
       rename(Area = Area.x,
              Country = Country.x) %>%
       mutate(V2025 = as.character(`Is Remaining V2025 Need`)) %>%
-      select(-`Is Remaining V2025 Need`) %>%
+      select(-`Is Remaining V2025 Need`) |>
+      mutate(V2025 = if_else(is.na(V2025), 'No', V2025)) |>
+      mutate(joshua_proj_country = if_else(is.na(joshua_proj_country), Country, joshua_proj_country)) |>
+      mutate(`Is Sign Language` = if_else(is.na(`Is Sign Language`), "No", `Is Sign Language`))
+
+    df <- df %>%
       rename(Countries = joshua_proj_country) %>%
       # rename(Countries = Country) %>%
       mutate(`Remaining need` = if_else(is.na(`V2025`) | V2025 == "No", 0, 1)) %>%
@@ -2552,7 +2557,11 @@ server <- function(input, output, session) {
              Country = Country.x) %>%
       mutate(aa_listed = as.character(`On All Access List`)) %>%
       select(-`On All Access List`) %>%
+      mutate(aa_listed = if_else(is.na(aa_listed), "No", aa_listed)) |>
+      mutate(`AAG chapters` = if_else(is.na(`AAG chapters`), 0, `AAG chapters`)) |>
+      mutate(joshua_proj_country = if_else(is.na(joshua_proj_country), Country, joshua_proj_country)) |>
       rename(Countries = joshua_proj_country) %>%
+      mutate(`Is Sign Language` = if_else(is.na(`Is Sign Language`), "No", `Is Sign Language`)) |>
       # rename(Countries = Country) %>%
       mutate(`Unmet goal` = if_else(is.na(aa_listed) | aa_listed == "No", 0, 1)) %>%
       mutate(`Sign language` = if_else(is.na(aa_listed) | `Is Sign Language` == "No", 0, 1)) %>%
