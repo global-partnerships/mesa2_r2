@@ -2481,23 +2481,21 @@ server <- function(input, output, session) {
       filter(Partner == input$selected_partner) %>%
       select(Area, Country, `Country Code`, `FIPS Code`)
 
-    # df <- main_rows %>%
-    #   full_join(area_table, by = "Country Code") %>%
     df <- area_table %>%
-      # full_join(main_rows)
       full_join(main_rows, by = "Country Code", multiple = "all")
 
     df <- df %>%
-      # select(Area, `Country Code`, Country, `joshua_proj_country`,
-      #        `Language Name`, `Is Remaining V2025 Need`, `Is Sign Language`) %>%
-      select(Area.x, -Area.y, `Country Code`, Country.x, -Country.y, `joshua_proj_country`,
-             `Language Name`, `Is Remaining V2025 Need`, `Is Sign Language`) %>%
-      rename(Area = Area.x,
-             Country = Country.x) %>%
+      select(Area.x, -Area.y, `Country Code`, Country.x, -Country.y, `FIPS Code.x`, -`FIPS Code.y`,
+             `joshua_proj_country`, `Language Name`, `Is Remaining V2025 Need`, `Is Sign Language`) %>%
+      rename(Area = Area.x, Country = Country.x, `FIPS Code` = `FIPS Code.x`) %>%
       mutate(V2025 = as.character(`Is Remaining V2025 Need`)) %>%
       select(-`Is Remaining V2025 Need`) |>
       mutate(V2025 = if_else(is.na(V2025), 'No', V2025)) |>
-      mutate(joshua_proj_country = if_else(is.na(joshua_proj_country), Country, joshua_proj_country)) |>
+      mutate(joshua_proj_country = if_else(is.na(joshua_proj_country),
+                                           paste0(
+                                             "<a href='https://joshuaproject.net/countries/",
+                                             `FIPS Code`, archive_link_infix, `Country`, archive_link_suffix),
+                                          joshua_proj_country)) |>
       mutate(`Is Sign Language` = if_else(is.na(`Is Sign Language`), "No", `Is Sign Language`))
 
     df <- df %>%
@@ -2544,22 +2542,27 @@ server <- function(input, output, session) {
 
     area_table <- combined_partner_areas %>%
       filter(Partner == input$selected_partner) %>%
-      select(Area, Country, `Country Code`)
+      select(Area, Country, `Country Code`, `FIPS Code`)
 
     df <- area_table %>%
       full_join(main_rows, by = "Country Code", multiple = "all")
 
     df <- df %>%
-      select(Area.x, -Area.y, `Country Code`, Country.x, -Country.y, `joshua_proj_country`, `Language Name`,
+      select(Area.x, -Area.y, `Country Code`, Country.x, -Country.y, `FIPS Code.x`, -`FIPS Code.y`,
+             `joshua_proj_country`, `Language Name`,
              `All Access Goal`, `AAG chapters`, `AAG chapters remaining`,
              `All Access Status`, `On All Access List`, `Is Sign Language`) %>%
-      rename(Area = Area.x,
-             Country = Country.x) %>%
+      rename(Area = Area.x, Country = Country.x, `FIPS Code` = `FIPS Code.x`) %>%
       mutate(aa_listed = as.character(`On All Access List`)) %>%
       select(-`On All Access List`) %>%
       mutate(aa_listed = if_else(is.na(aa_listed), "No", aa_listed)) |>
       mutate(`AAG chapters` = if_else(is.na(`AAG chapters`), 0, `AAG chapters`)) |>
-      mutate(joshua_proj_country = if_else(is.na(joshua_proj_country), Country, joshua_proj_country)) |>
+      mutate(joshua_proj_country = if_else(is.na(joshua_proj_country),
+                                           paste0(
+                                             "<a href='https://joshuaproject.net/countries/",
+                                             `FIPS Code`, archive_link_infix, `Country`, archive_link_suffix),
+                                           joshua_proj_country)) |>
+      # mutate(joshua_proj_country = if_else(is.na(joshua_proj_country), Country, joshua_proj_country)) |>
       rename(Countries = joshua_proj_country) %>%
       mutate(`Is Sign Language` = if_else(is.na(`Is Sign Language`), "No", `Is Sign Language`)) |>
       # rename(Countries = Country) %>%
