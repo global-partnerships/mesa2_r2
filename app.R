@@ -1492,14 +1492,19 @@ server <- function(input, output, session) {
   maps_table <- main_rows %>%
     select(Country, `Country Code`, `Language Name`, `Language Code`,
            `Is Sign Language`, `Translation Status`, `All Access Status`, `Is Remaining V2025 Need`, `On All Access List`,
-           `EGIDS Group`, `Org Engagements (WIP)`, `See Joshua Project`,
+           `Language Vitality`, `Org Engagements (WIP)`, `See Joshua Project`,
            `All Access Goal Met`, Latitude, Longitude, rowID) %>%
+    # select(Country, `Country Code`, `Language Name`, `Language Code`,
+    #        `Is Sign Language`, `Translation Status`, `All Access Status`, `Is Remaining V2025 Need`, `On All Access List`,
+    #        `EGIDS Group`, `Org Engagements (WIP)`, `See Joshua Project`,
+    #        `All Access Goal Met`, Latitude, Longitude, rowID) %>%
     mutate(html_popup_text =   paste("<div style=width: 20%; display: inline-block; wordwrap: break-word; >",
                                      "<h5>",`Language Name`,"</h5>",
                                      "<ul>",
                                      "<li><strong>Translation Status: </strong>",`Translation Status`,"</li>",
                                      "<li><strong>All Access Status: </strong>",`All Access Status`,"</li>",
-                                     "<li><strong>EGIDS Group: </strong>", `EGIDS Group`, "</li>",
+                                     "<li><strong>Language Vitality: </strong>", `Language Vitality`, "</li>",
+                                     # "<li><strong>EGIDS Group: </strong>", `EGIDS Group`, "</li>",
                                      "<li><strong>Org Engagements: </strong>", `Org Engagements (WIP)`, "</li>",
                                      "<li><strong>See Joshua Project: </strong>", `See Joshua Project`, "</li>",
                                      "</ul>",
@@ -2317,14 +2322,18 @@ server <- function(input, output, session) {
       # filter(Area %in% selected_areas) %>%
       select(`Country Code`, `Language Code`, `Language Name`,
              `Translation Status`, `All Access Status`, `Is Remaining V2025 Need`, `On All Access List`,
-             `EGIDS Group`, `Org Engagements (WIP)`, `See Joshua Project`, Longitude, Latitude) %>%
+             `Language Vitality`, `Org Engagements (WIP)`, `See Joshua Project`, Longitude, Latitude) %>%
+      # select(`Country Code`, `Language Code`, `Language Name`,
+      #        `Translation Status`, `All Access Status`, `Is Remaining V2025 Need`, `On All Access List`,
+      #        `EGIDS Group`, `Org Engagements (WIP)`, `See Joshua Project`, Longitude, Latitude) %>%
       filter(`Country Code` %in% input$selected_countries) |>
       mutate(html_popup_text =   paste("<div style=width: 20%; display: inline-block; wordwrap: break-word; >",
                                        "<h5>",`Language Name`,"</h5>",
                                        "<ul>",
                                        "<li><strong>Translation Status: </strong>",`Translation Status`,"</li>",
                                        "<li><strong>All Access Status: </strong>",`All Access Status`,"</li>",
-                                       "<li><strong>EGIDS Group: </strong>", `EGIDS Group`, "</li>",
+                                       "<li><strong>Language Vitality: </strong>", `Language Vitality`, "</li>",
+                                       # "<li><strong>EGIDS Group: </strong>", `EGIDS Group`, "</li>",
                                        "<li><strong>Org Engagements: </strong>", `Org Engagements (WIP)`, "</li>",
                                        "<li><strong>See Joshua Project: </strong>", `See Joshua Project`, "</li>",
                                        "</ul>",
@@ -2356,12 +2365,12 @@ server <- function(input, output, session) {
       "<strong><font size='+1'>%s</font></strong><br/>
          <strong>Translation Status:</strong> %s<br/>
          <strong>All Access Status:</strong> %s<br/>
-         <strong>EGIDS:</strong> %s<br/>
+         <strong>Language Vitality:</strong> %s<br/>
          <strong>See Joshua Project: </strong> %s",
       lang_markers_df$`Language Name`,
       lang_markers_df$`Translation Status`,
       lang_markers_df$`All Access Status`,
-      lang_markers_df$`EGIDS Group`,
+      lang_markers_df$`Language Vitality`,
       lang_markers_df$`See Joshua Project`) %>%
       purrr::map(htmltools::HTML)
 
@@ -2925,7 +2934,9 @@ server <- function(input, output, session) {
 
     lng_markers_df <- main_rows %>%
       select(`Country Code`, `Language Code`, `Language Name`, `Translation Status`, `All Access Status`,
-             `EGIDS Group`, Longitude, Latitude) %>%
+             `Language Vitality`, Longitude, Latitude) %>%
+      # select(`Country Code`, `Language Code`, `Language Name`, `Translation Status`, `All Access Status`,
+      #        `EGIDS Group`, Longitude, Latitude) %>%
       # filter(`Country Code` %in% input$selected_countries) |>
       filter(`Language Name` %in% lng_codes)
 
@@ -2935,11 +2946,11 @@ server <- function(input, output, session) {
       "<strong><font size='+1'>%s</font></strong><br/>
          <strong>Translation Status:</strong> %s<br/>
          <strong>All Access Status:</strong> %s<br/>
-         <strong>EGIDS:</strong> %s",
+         <strong>Language Vitality:</strong> %s",
       lng_markers_df$`Language Name`,
       lng_markers_df$`Translation Status`,
       lng_markers_df$`All Access Status`,
-      lng_markers_df$`EGIDS Group`) %>%
+      lng_markers_df$`Language Vitality`) %>%
       purrr::map(htmltools::HTML)
 
     # if (values$vb_click_filter %in% c("V2025", "All Access") && length(lng_codes) > 0) {
@@ -7563,18 +7574,21 @@ server <- function(input, output, session) {
         # filter(Area %in% selected_areas) %>%
         select(`Country Code`, `Language Code`, `Language Name`, `Translation Status`, `All Access Status`,
                `Is Remaining V2025 Need`, `On All Access List`,
-               `EGIDS Group`, Longitude, Latitude) %>%
+               `Language Vitality`, Longitude, Latitude) %>%
+        # select(`Country Code`, `Language Code`, `Language Name`, `Translation Status`, `All Access Status`,
+        #        `Is Remaining V2025 Need`, `On All Access List`,
+        #        `EGIDS Group`, Longitude, Latitude) %>%
         filter(`Country Code` %in% selected_countries)
 
       labels_language <- sprintf(
         "<strong><font size='+1'>%s</font></strong><br/>
          <strong>Translation Status:</strong> %s<br/>
          <strong>All Access Status:</strong> %s<br/>
-         <strong>EGIDS:</strong> %s",
+         <strong>Language Vitality:</strong> %s",
         lang_markers_df$`Language Name`,
         lang_markers_df$`Translation Status`,
         lang_markers_df$`All Access Status`,
-        lang_markers_df$`EGIDS Group`) %>%
+        lang_markers_df$`Language Vitality`) %>%
         purrr::map(htmltools::HTML)
 
       labels_name_only <- sprintf(
