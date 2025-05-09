@@ -2694,7 +2694,10 @@ server <- function(input, output, session) {
   global_AA_count <- reactive({
     df <- main_rows %>%
       filter(`On All Access List` == "Yes") %>%
-      summarise(total_langs = n())
+      summarise(
+        total_langs = n(),
+        total_sign_langs = sum(`Is Sign Language` == "Yes", na.rm = TRUE)
+        )
   })
 
   global_SL_AA_count <- reactive({
@@ -2724,6 +2727,7 @@ server <- function(input, output, session) {
       filter(`Is Remaining V2025 Need` == "Yes") %>%
       summarise(
         total_langs = n(),
+        total_sign_langs = sum(`Is Sign Language` == "Yes", na.rm = TRUE)
       )
   })
 
@@ -2804,7 +2808,8 @@ server <- function(input, output, session) {
 
     if (input$selected_db_view == "Sign Language") {
       value = local_SL_AA_count()$total_langs
-      subtitle = "Sign languages with unmet All Access goals."
+      subtitle = paste0("Sign languages with unmet All Access goals. (Global total:  ", global_AA_count()$total_sign_langs, ")")
+      # subtitle = "Sign languages with unmet All Access goals."
     } else {
       value = local_AA_count()$total_langs
       subtitle = paste0("Unmet All Access goals. (Global total:  ", global_AA_count()$total_langs, ")")
@@ -2835,7 +2840,7 @@ server <- function(input, output, session) {
 
     if (input$selected_db_view == "Sign Language") {
       value = local_SL_V2025_count()$total_langs
-      subtitle = "Vision 2025 sign languages remaining"
+      subtitle = paste0("Vision 2025 sign languages remaining (Global total: ", global_V2025_count()$total_sign_langs, ")")
     } else {
       value = local_V2025_count()$total_langs
       subtitle = paste0("Vision 2025 languages remaining (Global total: ", global_V2025_count()$total_langs, ")")
