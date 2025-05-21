@@ -8198,6 +8198,15 @@ server <- function(input, output, session) {
           hideGroup(c("Languages - markers only")) |>
           # hideGroup(c("Languages - markers only", "Languages - markers & labels")) |>
 
+          # Add scale bar
+          addScaleBar(position = "bottomleft",
+                      options = scaleBarOptions(
+                        maxWidth = 100,
+                        metric = TRUE,
+                        imperial = TRUE,
+                        updateWhenIdle = TRUE
+                      )) |>
+
           addDrawToolbar(
               targetGroup='Selected',
               polylineOptions=FALSE,
