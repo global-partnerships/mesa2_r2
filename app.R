@@ -7849,6 +7849,16 @@ server <- function(input, output, session) {
       #             opacity = 0.9,
       #             group = "Languages - markers & labels")
 
+      # Add scale bar
+      m <- m %>%
+        addScaleBar(position = "bottomleft",
+                    options = scaleBarOptions(
+                      maxWidth = 100,
+                      metric = TRUE,
+                      imperial = TRUE,
+                      updateWhenIdle = TRUE
+                    ))
+
 
       m <- m %>%
         addLayersControl(
