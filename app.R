@@ -152,6 +152,9 @@ get_DT_main_obj <- function(data) {
   title <- "Mesa table export"
   top_message <- paste0("For internal use only. Please do not share publicly without permission. ",
                         "Data provided by ProgressBible™ on ", today())
+
+  data <- data |> arrange_hb_columns()
+
   datatable(
     data = data,
     caption = "Tip: Use the search box and/or column filters to refine list. Select rows to show details in table below.",
@@ -178,17 +181,37 @@ get_DT_main_obj <- function(data) {
       rowId = 0,
       columnDefs = list(list(visible = FALSE, targets = 0)),
       buttons = list(
-        list(extend = "copy", title = NULL,
+        list(extend = "copy",
+             title = NULL,
              text = "Copy to clipboard",
-             messageTop = top_message),
-        list(extend = "excel", title = NULL,
+             messageTop = top_message,
+             exportOptions = list(
+               format = list(
+                 header = DT::JS("function(data, columnIdx) {
+                   return data.replace('HB - ', '');
+                 }")
+               )
+             )
+        ),
+        list(extend = "excel",
+             title = NULL,
              filename = paste0("Mesa export - ", today()),
              text = "Export to Excel",
              messageTop = top_message,
+             exportOptions = list(
+               format = list(
+                 header = DT::JS("function(data, columnIdx) {
+                   return data.replace('HB - ', '');
+                 }")
+               )
+             ),
              customize = DT::JS("function(xlsx) {
                var sheet = xlsx.xl.worksheets['sheet1.xml'];
-               $('row:first c', sheet).attr( 's', '50' );}"))
-        ),
+               // Apply styling to header row (second row due to messageTop)
+               $('row:nth-child(2) c', sheet).attr('s', '50');
+             }")
+        )
+      ),
       lengthMenu = list(c(-1, 10, 25, 50), c("All", 10, 25, 50))
     ),
     selection = list(
@@ -1446,6 +1469,7 @@ server <- function(input, output, session) {
 
   ROLV_rows <- get_df_feather("rolv_varieties") |>
     select(-etl_timestamp)
+
 
   rm(data_list)
 

@@ -62,7 +62,22 @@ main_rows_transformations <- function(df) {
     #          as_factor()) |>
     mutate(`AAG chapters remaining` = if_else(is.na(`All Access Status`) | str_detect(`All Access Status`, "Goal Met"),
                                               0, `AAG chapters`)) |>
-    mutate('AAG pct chapters remaining' = ifelse(`AAG chapters` == `AAG chapters remaining`, 1, 0))
+    mutate('AAG pct chapters remaining' = ifelse(`AAG chapters` == `AAG chapters remaining`, 1, 0)) |>
+    mutate(`HB - Language` = str_trim(str_extract(`Language Name`, "^[^\\[]+"))) |>
+    mutate(`HB - Pronunciation Guide` = "<insert here>") |>
+    mutate(`HB - Population` = `1st Language Pop`) |>
+    mutate(`HB - First Scripture?` =
+             if_else(is.na(`Completed Scripture`) |
+                       `Translation Status` %in% c("Limited or Old Scripture",
+                                                  "Expressed Need",
+                                                  "Potential Need"),
+                     "Yes",
+                     "No")) |>
+    mutate(`HB - All Access Goal?` =
+             if_else(str_detect(`All Access Status`, "^Goal Met.*"),
+                     `All Access Status`,
+                     `All Access Goal`)) |>
+    mutate(`HB - Language Vitality` = `Language Vitality`)
 
   out2 <- out |>
     fix_names()
@@ -83,3 +98,24 @@ fix_names <- function(df) {
     )
   return(out)
 }
+
+arrange_hb_columns <- function(df) {
+  hb_order <- c("HB - Language",
+                "HB - Pronunciation Guide",
+                "HB - Population",
+                "HB - First Scripture?",
+                "HB - All Access Goal?",
+                "HB - Language Vitality")
+
+  hb_present <- hb_order[hb_order %in% names(df)]
+  other_cols <- names(df)[!names(df) %in% hb_order]
+
+  df[, c(other_cols, hb_present)]
+}
+
+remove_hb_prefix <- function(df) {
+  # Remove "HB - " from the beginning of column names
+  names(df) <- gsub("^HB - ", "", names(df))
+  return(df)
+}
+
