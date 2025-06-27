@@ -1560,15 +1560,24 @@ server <- function(input, output, session) {
     select(`Translation Status`, `All Access Status`, 'Is Remaining V2025 Need', 'On All Access List') %>%
     names()
 
+  status_field_list_grouped <- field_hierarchy %>%
+    filter(Source %in% main_sources) %>%
+    filter(Topic %in% c("All Access", "Vision 2025")) %>%
+    filter(field_name != "Inherited") |>
+    select(Topic, field_name) |>
+    mutate(Topic = factor(Topic, levels = c("Vision 2025", "All Access"))) |>
+    group_by(Topic) |>
+    group_map(~ .x$field_name, .keep = TRUE) %>%
+    set_names(c("Vision 2025", "All Access"))
+
+  str(status_field_list_grouped)
+
   status_field_list <- field_hierarchy %>%
       filter(Source %in% main_sources) %>%
       filter(Topic %in% c("All Access", "Vision 2025")) %>%
       filter(field_name != "Inherited") %>%
       pull(field_name) %>%
-      unique()
-
-  print(unique(field_hierarchy$Topic))
-  print(status_field_list)
+      unique() |> sort()
 
   status_vars2 <- main_rows %>%
     select(Country, `Country Code`, `Language Name`, `Language Code`, all_of(status_field_list))
@@ -8781,13 +8790,23 @@ server <- function(input, output, session) {
     })
 
     output$status_fields <- renderUI({
-      radioButtons(inputId="selected_status_field",
+      selectInput(inputId="selected_status_field",
                    label="Select desired language status field:",
-                   choices = status_field_list,
+                   choices = status_field_list_grouped,
+                   # choices = status_field_list,
                    selected = "Translation Status",
-                   inline = TRUE,
                    width = NULL)
     })
+
+    # output$status_fields <- renderUI({
+    #   radioButtons(inputId="selected_status_field",
+    #                label="Select desired language status field:",
+    #                choices = status_field_list_grouped,
+    #                # choices = status_field_list,
+    #                selected = "Translation Status",
+    #                inline = TRUE,
+    #                width = NULL)
+    # })
 
     output$plot_status_dist <- renderPlotly({
         req(input$selected_status_field)
