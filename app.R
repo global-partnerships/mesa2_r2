@@ -1570,8 +1570,6 @@ server <- function(input, output, session) {
     group_map(~ .x$field_name, .keep = TRUE) %>%
     set_names(c("Vision 2025", "All Access"))
 
-  str(status_field_list_grouped)
-
   status_field_list <- field_hierarchy %>%
       filter(Source %in% main_sources) %>%
       filter(Topic %in% c("All Access", "Vision 2025")) %>%
@@ -8793,20 +8791,9 @@ server <- function(input, output, session) {
       selectInput(inputId="selected_status_field",
                    label="Select desired language status field:",
                    choices = status_field_list_grouped,
-                   # choices = status_field_list,
                    selected = "Translation Status",
                    width = NULL)
     })
-
-    # output$status_fields <- renderUI({
-    #   radioButtons(inputId="selected_status_field",
-    #                label="Select desired language status field:",
-    #                choices = status_field_list_grouped,
-    #                # choices = status_field_list,
-    #                selected = "Translation Status",
-    #                inline = TRUE,
-    #                width = NULL)
-    # })
 
     output$plot_status_dist <- renderPlotly({
         req(input$selected_status_field)
