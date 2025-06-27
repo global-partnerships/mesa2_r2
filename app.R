@@ -1562,10 +1562,13 @@ server <- function(input, output, session) {
 
   status_field_list <- field_hierarchy %>%
       filter(Source %in% main_sources) %>%
-      filter(Topic == "Status") %>%
+      filter(Topic %in% c("All Access", "Vision 2025")) %>%
       filter(field_name != "Inherited") %>%
       pull(field_name) %>%
       unique()
+
+  print(unique(field_hierarchy$Topic))
+  print(status_field_list)
 
   status_vars2 <- main_rows %>%
     select(Country, `Country Code`, `Language Name`, `Language Code`, all_of(status_field_list))
@@ -1577,8 +1580,8 @@ server <- function(input, output, session) {
   default_countries <- "PG"
 
   default_taxonomy <- "Topic"
-  default_topic <- "Status"
-  default_fields <- "Translation Status"
+  default_topic <- "Identification"
+  default_fields <- "Varieties (ROLV)"
 
   values <- reactiveValues(
       # initial values
