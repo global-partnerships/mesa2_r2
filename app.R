@@ -77,7 +77,8 @@ source("get_history_functions.R")
 
 # **************** global variables ****************
 
-version <- "1.0.16"
+version <- "1.0.17"
+# version <- "1.0.16"
 # version <- "1.0.15"
 # version <- "1.0.14"
 # version <- "1.0.13"
@@ -96,6 +97,11 @@ version <- "1.0.16"
 # version <- "1.0.0"
 
 main_sources <- c("Translation Status")
+
+# *** global variables ***
+archive_link_prefix <<- "<a href='https://www.sil.org/resources/search/language/"
+archive_link_infix <<- "' target='_blank'>"
+archive_link_suffix <<- "</a>"
 
 # ****** functions ******
 
@@ -322,10 +328,10 @@ ui <-
   dashboardPage(
 
     # useShinyjs(),
-    skin = "purple",
+    # skin = "purple",
     # skin = "green",
     # skin = "blue",
-    # skin = "yellow",
+    skin = "yellow",
     #
     title = paste0("Mesa ", version),
 
@@ -1375,7 +1381,7 @@ server <- function(input, output, session) {
   # }) |> bindEvent(input$selected_snapshot)
 
   # print("misc transformation to main_rows")
-  main_rows <- main_rows |> main_rows_transformations()
+  main_rows <-  main_rows_transformations(main_rows, combined_partner_areas)
 
   # *** moved these to utils.R *** mbj
   # main_rows <- main_rows |>
@@ -1477,38 +1483,7 @@ server <- function(input, output, session) {
 
   # user_config <- read_user_config(user)
 
-  # *** additional transformations ***
-
-  archive_link_prefix <- "<a href='https://www.sil.org/resources/search/language/"
-  archive_link_infix <- "' target='_blank'>"
-  archive_link_suffix <- "</a>"
-
-  fips_lookup <- combined_partner_areas |>
-    filter(Partner == "Global Partnerships") |>
-    select(`Country Code`, `FIPS Code`)
-
   main_rows <- main_rows %>%
-    left_join(fips_lookup, join_by(`Country Code`)) |>
-    mutate(
-      `Search SIL Archive` = paste0(
-        archive_link_prefix,
-        `Language Code`,
-        archive_link_infix,
-        `Language Name`,
-        archive_link_suffix),
-      `joshua_proj_country` = paste0(
-        "<a href='https://joshuaproject.net/countries/",
-        `FIPS Code`,
-        archive_link_infix,
-        `Country`,
-        archive_link_suffix),
-      `See Joshua Project` = paste0(
-        "<a href='https://joshuaproject.net/languages/",
-        `Language Code`,
-        archive_link_infix,
-        `Language Name`,
-        archive_link_suffix)
-    ) %>%
     left_join(SLI_List, by = c("Language Code"))
 
   rm(SLI_List)

@@ -36,7 +36,44 @@ aa_hist_transformations <- function(df) {
 }
 
 
-main_rows_transformations <- function(df) {
+main_rows_transformations <- function(df, combined_partner_areas) {
+  # archive_link_prefix <- "<a href='https://www.sil.org/resources/search/language/"
+  # archive_link_infix <- "' target='_blank'>"
+  # archive_link_suffix <- "</a>"
+
+  fips_lookup <- combined_partner_areas |>
+    filter(Partner == "Global Partnerships") |>
+    select(`Country Code`, `FIPS Code`)
+
+  df <- df %>%
+    left_join(fips_lookup, join_by(`Country Code`)) |>
+    mutate(
+      `Search SIL Archive` = paste0(
+        archive_link_prefix,
+        `Language Code`,
+        archive_link_infix,
+        `Language Name`,
+        archive_link_suffix),
+      `joshua_proj_country` = paste0(
+        "<a href='https://joshuaproject.net/countries/",
+        `FIPS Code`,
+        archive_link_infix,
+        `Country`,
+        archive_link_suffix),
+      `See Joshua Project` = paste0(
+        "<a href='https://joshuaproject.net/languages/",
+        `Language Code`,
+        archive_link_infix,
+        `Language Name`,
+        archive_link_suffix),
+      `See GRN listing` = paste0(
+        "<a href='https://globalrecordings.net/en/language/",
+        `Language Code`,
+        archive_link_infix,
+        "See GRN listing",
+        archive_link_suffix)
+    )
+
   out <- df |>
     mutate(`Is Sign Language` = factor(`Is Sign Language`, levels = c("Yes", "No"))) %>%
     mutate(`Is Remaining V2025 Need` = factor(`Is Remaining V2025 Need`, levels = c("Yes", "No"))) %>%
@@ -67,16 +104,24 @@ main_rows_transformations <- function(df) {
     mutate(`HB - Pronunciation Guide` = "<insert here>") |>
     mutate(`HB - Population` = `1st Language Pop`) |>
     mutate(`HB - First Scripture?` =
-             if_else(is.na(`Completed Scripture`) |
-                       `Translation Status` %in% c("Limited or Old Scripture",
-                                                  "Expressed Need",
-                                                  "Potential Need"),
-                     "Yes",
-                     "No")) |>
+             if_else(is.na(`Varieties (ROLV)`),
+               if_else(is.na(`Completed Scripture`) |
+                         `Translation Status` %in% c("Limited or Old Scripture",
+                                                    "Expressed Need",
+                                                    "Potential Need"),
+                       "Yes",
+                       "No"),
+               `See GRN listing`)
+           ) |>
     mutate(`HB - All Access Goal?` =
-             if_else(str_detect(`All Access Status`, "^Goal Met.*"),
+             if_else(str_detect(`All Access Status`, "^(Goal Met|Not on)"),
+             # if_else(str_detect(`All Access Status`, "^Goal Met.*"),
                      `All Access Status`,
                      `All Access Goal`)) |>
+    # mutate(`HB - All Access Goal?` =
+    #          if_else(str_detect(`HB - All Access Goal?`, "^Not available"),
+    #                  "Not on All Access Goal List",
+    #                  `HB - All Access Goal?`)) |>
     mutate(`HB - Language Vitality` = `Language Vitality`)
 
   out2 <- out |>
