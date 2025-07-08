@@ -36,7 +36,7 @@ aa_hist_transformations <- function(df) {
 }
 
 
-main_rows_transformations <- function(df, combined_partner_areas) {
+main_rows_transformations <- function(df, combined_partner_areas, grn_recorded) {
   # archive_link_prefix <- "<a href='https://www.sil.org/resources/search/language/"
   # archive_link_infix <- "' target='_blank'>"
   # archive_link_suffix <- "</a>"
@@ -103,16 +103,46 @@ main_rows_transformations <- function(df, combined_partner_areas) {
     mutate(`HB - Language` = str_trim(str_extract(`Language Name`, "^[^\\[]+"))) |>
     mutate(`HB - Pronunciation Guide` = "<insert here>") |>
     mutate(`HB - Population` = `1st Language Pop`) |>
+    # mutate(`HB - First Scripture?` =
+    #          if_else(trimws(`Recorded (GRN)`) == 'Yes',
+    #                  "No",
+    #                  if_else(is.na(`Completed Scripture`) |
+    #                            `Translation Status` %in% c("Limited or Old Scripture",
+    #                                                       "Expressed Need",
+    #                                                       "Potential Need"),
+    #                          "Yes",
+    #                          "No")
+    #                  )
+    #        ) |>
     mutate(`HB - First Scripture?` =
-             if_else(is.na(`Varieties (ROLV)`),
-               if_else(is.na(`Completed Scripture`) |
-                         `Translation Status` %in% c("Limited or Old Scripture",
-                                                    "Expressed Need",
-                                                    "Potential Need"),
-                       "Yes",
-                       "No"),
-               `See GRN listing`)
+             if_else((`Translation Status` %in% c("Limited or Old Scripture",
+                                                  "Expressed Need",
+                                                  "Potential Need") |
+                      is.na(`Completed Scripture`)) &
+                      trimws(`Recorded (GRN)`) == 'No',
+                     "Yes",
+                     "No")
            ) |>
+    # mutate(`HB - First Scripture?` =
+    #          if_else(is.na(`Completed Scripture`) |
+    #                    `Translation Status` %in% c("Limited or Old Scripture",
+    #                                               "Expressed Need",
+    #                                               "Potential Need") |
+    #                    trimws(`Recorded (GRN)`) == 'No',
+    #                  "Yes",
+    #                  "No")
+    #        ) |>
+    # mutate(`HB - First Scripture?` =
+    #          if_else(is.na(`Varieties (ROLV)`),
+    #            if_else(is.na(`Completed Scripture`) |
+    #                      `Translation Status` %in% c("Limited or Old Scripture",
+    #                                                 "Expressed Need",
+    #                                                 "Potential Need") |
+    #                      `Recorded (GRN)` == 0,
+    #                    "Yes",
+    #                    "No"),
+    #            `See GRN listing`)
+    #        ) |>
     mutate(`HB - All Access Goal?` =
              if_else(str_detect(`All Access Status`, "^(Goal Met|Not on)"),
              # if_else(str_detect(`All Access Status`, "^Goal Met.*"),

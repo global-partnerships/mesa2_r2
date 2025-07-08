@@ -153,13 +153,17 @@ get_DT_details_obj <- function(data) {
 }
 
 get_DT_main_obj <- function(data) {
-# get_DT_main_obj <- function(data, rows_selected) {
   table_names <- names(data)
   title <- "Mesa table export"
   top_message <- paste0("For internal use only. Please do not share publicly without permission. ",
                         "Data provided by ProgressBible™ on ", today())
 
   data <- data |> arrange_hb_columns()
+
+  if("Varieties (ROLV)" %in% table_names) {
+    data <- data |>
+      mutate(`Varieties (ROLV)` = as.character(`Varieties (ROLV)`))
+  }
 
   datatable(
     data = data,
@@ -176,16 +180,9 @@ get_DT_main_obj <- function(data) {
       scrollY = TRUE,
       scrollX = TRUE,
       scrollcollapse = TRUE,
-      # scrollY = '80vh',
-      # scrollX = 'true',
-      # scrollX = 'false',
-      # scrollcollapse = FALSE,
-      # select = list(
-      #   style = 'multi+shift',
-      #   items = 'row'),
       dom = 'Blfritip',
       rowId = 0,
-      columnDefs = list(list(visible = FALSE, targets = 0)),
+      # columnDefs = list(list(visible = FALSE, targets = 0)),
       buttons = list(
         list(extend = "copy",
              title = NULL,
@@ -218,17 +215,30 @@ get_DT_main_obj <- function(data) {
              }")
         )
       ),
-      lengthMenu = list(c(-1, 10, 25, 50), c("All", 10, 25, 50))
+      lengthMenu = list(c(-1, 10, 25, 50), c("All", 10, 25, 50)),
+      # autoWidth = TRUE,
+      columnDefs = list(
+        list(visible = FALSE, targets = c(0, 3)),
+        list(width = "110px", targets = 1),
+        list(width = "90px", targets = 2)
+        # list(width = "10%", targets = c(2, 3)), # Columns that should be relatively narrow
+        # list(width = "20%", targets = c(4, 5))  # Columns that need more space
+      ),
+      columnDefs = list(
+        list(visible = FALSE, targets = 0),
+        list(width = "60px", targets = 3, className = "dt-center"),
+        # Add this to align all headers consistently
+        list(className = "dt-head-center", targets = "_all")
+      ),
+      # Add custom CSS
+      initComplete = DT::JS("function(settings, json) {
+        $(this.api().table().header()).css('text-align', 'center');
+      }")
     ),
     selection = list(
       mode = 'multiple',
       selected = NULL,
-      # selected = rows_selected,
       target = 'row')
-    # selection = list(
-    #   selected = rows_selected
-    # )
-    # selection = 'none'
   ) %>%
     { if("1st Language Pop" %in% table_names)
       formatCurrency(., columns = "1st Language Pop",
@@ -1350,6 +1360,9 @@ server <- function(input, output, session) {
   }
 
   main_rows <- get_df_dataset("pb_main_ds")
+  # print("*** main_rows$Country after initial extraction from dataset")
+  # str(main_rows$Country)
+
 
   max_snapshot_date <- main_rows$`SnapshotDate` |> max()
 
@@ -1381,37 +1394,32 @@ server <- function(input, output, session) {
   # }) |> bindEvent(input$selected_snapshot)
 
   # print("misc transformation to main_rows")
-  main_rows <-  main_rows_transformations(main_rows, combined_partner_areas)
 
-  # *** moved these to utils.R *** mbj
-  # main_rows <- main_rows |>
-  #   mutate(`Is Sign Language` = factor(`Is Sign Language`, levels = c("Yes", "No"))) %>%
-  #   mutate(`Is Remaining V2025 Need` = factor(`Is Remaining V2025 Need`, levels = c("Yes", "No"))) %>%
-  #   mutate(`On All Access List` = factor(`On All Access List`, levels = c("Yes", "No"))) %>%
-  #   # mutate(`In The Circle` = factor(`In The Circle`, levels = c("Yes", "No"))) %>%
-  #   mutate(`Translation Status` = as.factor(str_replace_na(.$`Translation Status`, replacement = "Not available"))) %>%
-  #   mutate(`All Access Goal` = as.factor(str_replace_na(.$`All Access Goal`, replacement = "Not available"))) %>%
-  #   left_join(missing_SL_coords) |>
-  #   mutate(`AAG chapters` = ifelse(`All Access Goal` == '25 Chapters',25,
-  #                                  ifelse(`All Access Goal` == 'NT/260 chapters',260,
-  #                                         ifelse(`All Access Goal` == 'Bible',1189,
-  #                                                ifelse(`All Access Goal` == 'Two Bibles',2378,0))))) |>
-  #   # mutate(`DSI Eligibility` = if_else(`Language Code` %in% dsi_langs$`Language Code` &
-  #   #                                    `Country Code` %in% dsi_langs$`Country Code`, 'Yes', 'No') |>
-  #   #          as_factor()) |>
-  #   mutate(`AAG chapters remaining` = if_else(is.na(`All Access Status`) | str_detect(`All Access Status`, "Goal Met"),
-  #                                             0, `AAG chapters`))
-  # # print("done")
-  #
-  # main_rows <- main_rows |>
-  #   rename(
-  #     POSIXct_date = `P O S I Xct_date`,
-  #     `Active OBT` = `Active O B T`,
-  #     `Prior AA Status` = `Prior A A Status`,
-  #     `Has OBT Engagements` = `Has O B T Engagements`,
-  #     `IllumiNations Region` = `Illumi Nations Region`,
-  #     `IllumiNations Group Name` = `Illumi Nations Group Name`
-  #   )
+  grn_rows <- get_df_feather("grn_numbers") |>
+    select(-etl_timestamp)
+
+  grn_data <- grn_rows |>
+    select(`Language Code`, `GRN Name`, `GRN Number`, `Recorded (GRN)`) |>
+    mutate(`Recorded (GRN)` = if_else(`Recorded (GRN)` == 1, "Yes", "No"))
+
+  grn_summaries <- grn_data %>%
+    group_by(`Language Code`) %>%
+    reframe(grn_name = str_c(`GRN Name`),
+            grn_num = str_c(`GRN Number`),
+            grn_recorded = str_c(`Recorded (GRN)`)) %>%
+    mutate(grn_name = paste0("<b>", grn_name, "</b>", " (", grn_num, ", GRN rec: ", grn_recorded, ")")) %>%
+    group_by(`Language Code`) %>%
+    summarise(`GRN Numbers` = str_c(grn_name, collapse = "<br>"))
+
+  main_rows <- main_rows |>
+    left_join(grn_data, multiple = "first") |>
+    left_join(grn_summaries, multiple = "first")
+
+  main_rows <-  main_rows |>
+    main_rows_transformations(combined_partner_areas, grn_recorded)
+  # print("*** main_rows$Country after transformations")
+  # str(main_rows$Country)
+
 
   #################################################################################
   # 2024 04 30 Morris Johnson
@@ -1419,17 +1427,29 @@ server <- function(input, output, session) {
   # For variable that need ordered levels, use factor() with the levels specified,
   # e.g., see above.
   #################################################################################
-  main_rows <- main_rows |>
-    mutate(across(where(is_character), as_factor))
+  # main_rows <- main_rows |>
+  #   # mutate(across(where(is_character), as_factor))
+  #   # mutate(across(where(\(x) is.character(x) && !is.factor(x)), factor))
+  #   # mutate(across(c(where(is_character), -where(is.factor)), factor))
+  #   mutate(across(where(is_character), factor))
+  #
+  # print("*** main_rows$Country after initial factor mutate ***")
+  # str(main_rows$Country)
+
 
   gp_areas <- combined_partner_areas %>%
     filter(Partner == "Global Partnerships") |>
-    select(Area, Country, `Country Code`)
+    select(Area, Country, `Country Code`) |>
+    mutate(across(where(is_character), factor))
+
 
   # print("left joining main_rows and gp_areas")
   main_rows <- main_rows |>
     left_join(gp_areas)
   # print("done")
+
+  # print("*** main_rows$Country after join with gp_areas ***")
+  # str(main_rows$Country)
 
   WIP_rows_all <- get_df_feather("WIP_data")
 
@@ -2257,11 +2277,40 @@ server <- function(input, output, session) {
       fields <- default_fields
     }
 
+    # print("*** str for main_rows$Country @ top of main_rows_reactive ***")
+    # str(main_rows$Country)
+
+    # df <- main_rows %>%
+    #   filter(`Language Code` %in% lang_codes()) %>%
+    #   droplevels() %>%
+    #   select(rowID, Country, `Language Name`, `Language Code`, all_of(fields))
+    #   # select(Country, `Language Name`, `Language Code`, all_of(fields), rowID)
+
     df <- main_rows %>%
       filter(`Language Code` %in% lang_codes()) %>%
-      droplevels() %>%
-      select(rowID, Country, `Language Name`, `Language Code`, all_of(fields))
-      # select(Country, `Language Name`, `Language Code`, all_of(fields), rowID)
+      select(rowID, Country, `Language Name`, `Language Code`, all_of(fields)) %>%
+      mutate(across(where(is.factor), droplevels))
+
+    threshold <- 0.1  # 10% unique values or fewer => convert to factor
+
+    df <- df %>%
+      mutate(
+        across(
+          where(~ is.character(.x) | is.integer(.x)),
+          ~ {
+            if (n_distinct(.x) / n() <= threshold) {
+              factor(.x, exclude = NULL)
+            } else {
+              .x
+            }
+          }
+        )
+      )
+
+    # print("*** str for main_rows$Country @ end of main_rows_reactive ***")
+    # str(main_rows$Country)
+
+
     return(df)
   })
 
@@ -3240,6 +3289,9 @@ server <- function(input, output, session) {
     }
 
     # values$curr_db_lang_names <- df$`Language Name`
+
+    df <- df |>
+      mutate(across(where(is.factor), droplevels))
 
     return(df)
 
@@ -6836,7 +6888,8 @@ server <- function(input, output, session) {
       "shared_collections" = shared_coll_rows() |>
         filter(str_detect(Languages, paste0('(', str_c(details_lang_codes, collapse = "|"),')'))),
       "SP" = filter(SP_rows, `Language Code` %in% details_lang_codes),
-      "ROLV" = filter(ROLV_rows, `Language Code` %in% details_lang_codes)
+      "ROLV" = filter(ROLV_rows, `Language Code` %in% details_lang_codes),
+      "GRN" = filter(grn_rows, `Language Code` %in% details_lang_codes)
       # ,
       # "Ethnologue" = filter(Ethnologue_rows, `Language Code` %in% details_lang_codes)
     )
@@ -6846,9 +6899,8 @@ server <- function(input, output, session) {
       "alt_names" = nested_tables_list$alt_names %>% nrow(),
       "shared_collections" = nested_tables_list$shared_collections |> nrow(),
       "SP" = nested_tables_list$SP %>% nrow(),
-      "ROLV" = nested_tables_list$ROLV %>% nrow()
-      # ,
-      # "Ethnologue" = nested_tables_list$Ethnologue %>% nrow()
+      "ROLV" = nested_tables_list$ROLV %>% nrow(),
+      "GRN" = nested_tables_list$GRN %>% nrow()
     )
 
     nested_tables_name <- list(
@@ -6856,7 +6908,8 @@ server <- function(input, output, session) {
       "alt_names" = "Alternate Language Names",
       "shared_collections" = "Shared Language Collections",
       "SP" = "Scripture Products",
-      "ROLV" = "Registry of Language Varieties"
+      "ROLV" = "Registry of Language Varieties",
+      "GRN" = "Gospel Recordings Network Listings"
     )
 
     nested_tables_df <- tibble(
@@ -6937,6 +6990,20 @@ server <- function(input, output, session) {
                              arrange(`Location (ROLV)`, `Language Code`)
                            # select(-id, -tab_label, -nrows, -`Language Code`)
                            rowCount = nested_tables_df %>% filter(id == "ROLV") %>% pull(nrows)
+                           if(rowCount != 0) {
+                             get_DT_details_obj(data)
+                           } else {
+                             "No data"
+                           }
+                         }
+                ),
+                tabPanel(value = "GRN",
+                         title = paste("Gospel Recordings Network Listings (", nested_tables_nrows$GRN, ")"),
+                         {
+                           data <- nested_tables_df |>
+                             filter(id == "GRN") %>%
+                             unnest(cols = c(data))
+                           rowCount = nested_tables_df %>% filter(id == "GRN") %>% pull(nrows)
                            if(rowCount != 0) {
                              get_DT_details_obj(data)
                            } else {
