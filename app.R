@@ -1269,27 +1269,70 @@ server <- function(input, output, session) {
   # load cached data files
   #################################################################################
 
-  # mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), "data_test/sql_db/mesa.sqlite")
   mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), "data/sql_db/mesa.sqlite")
   tbl_list <- DBI::dbListTables(mesa_sql_con)
 
-  data_list <- tbl_list %>%
-    map_dfr(\(name) tibble(
-      fname = name,
-      data = list(tbl(mesa_sql_con, name) |> collect()))
-    )
+  # Initialize empty list
+  data_list <- list()
 
-  DBI::dbDisconnect(mesa_sql_con)
+  # Populate with for loop
+  for (table_name in tbl_list) {
+    data_list[[table_name]] <- tbl(mesa_sql_con, table_name)
+  }
 
-  # print(data_list)
+  # Keep connection open for lazy evaluation
+  # DBI::dbDisconnect(mesa_sql_con)  # Comment this out for now
 
   get_df_feather <- function(name){
-    df <- data_list %>%
-      filter(fname == name) %>%
-      unnest(cols = c(data)) %>%
-      select(-fname)
-    return(df)
+    data_list[[name]] %>% collect()
   }
+
+  # mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), "data_test/sql_db/mesa.sqlite")
+  # mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), "data/sql_db/mesa.sqlite")
+  # tbl_list <- DBI::dbListTables(mesa_sql_con)
+  #
+  # data_list <- tbl_list %>%
+  #   map_dfr(\(name) tibble(
+  #     fname = name,
+  #     data = list(tbl(mesa_sql_con, name)))
+  #     # data = list(tbl(mesa_sql_con, name) |> collect()))
+  #   )
+  #
+  # DBI::dbDisconnect(mesa_sql_con)
+
+  # load_mesa_tables <- function(db_path = "data/sql_db/mesa.sqlite",
+  #                              collect_data = FALSE) {
+  #   con <- DBI::dbConnect(RSQLite::SQLite(), db_path)
+  #
+  #   tryCatch({
+  #     table_names <- DBI::dbListTables(con)
+  #
+  #     # Fix: Use table_names directly with map, then set names
+  #     tables <- map(table_names, ~ {
+  #       tbl_obj <- tbl(con, .x)
+  #       if (collect_data) collect(tbl_obj) else tbl_obj
+  #     }) %>%
+  #       set_names(table_names)  # Set names after mapping
+  #
+  #     return(tables)
+  #
+  #   }, finally = {
+  #     DBI::dbDisconnect(con)
+  #   })
+  # }
+  #
+  # # Usage - lazy loading (recommended)
+  # data_list <- load_mesa_tables()
+
+  # print(data_list)
+  #
+  # get_df_feather <- function(name){
+  #   df <- data_list %>%
+  #     filter(fname == name) %>%
+  #     unnest(cols = c(data)) %>%
+  #     select(-fname)
+  #   return(df)
+  # }
 
   get_all_snapshot_dates <- function(ds_name) {
     # print("@ get_all_snapshot_dates")
@@ -1398,21 +1441,26 @@ server <- function(input, output, session) {
   grn_rows <- get_df_feather("grn_numbers") |>
     select(-etl_timestamp)
 
-  grn_data <- grn_rows |>
-    select(`Language Code`, `GRN Name`, `GRN Number`, `Recorded (GRN)`) |>
+  grn_summary_data <- grn_rows |>
+    select(`Language Code`, `GRN Name`, `GRN Number`, `Recorded (GRN)`, `Parent Number (GRN)`) |>
     mutate(`Recorded (GRN)` = if_else(`Recorded (GRN)` == 1, "Yes", "No"))
 
-  grn_summaries <- grn_data %>%
+  # write.csv(grn_data, "grn_data.csv")
+
+  grn_summaries <- grn_summary_data %>%
     group_by(`Language Code`) %>%
     reframe(grn_name = str_c(`GRN Name`),
             grn_num = str_c(`GRN Number`),
+            grn_parent = str_c(`Parent Number (GRN)`),
             grn_recorded = str_c(`Recorded (GRN)`)) %>%
-    mutate(grn_name = paste0("<b>", grn_name, "</b>", " (", grn_num, ", GRN rec: ", grn_recorded, ")")) %>%
+    mutate(grn_summary = if_else(is.na(grn_parent),
+                                 paste0("<b>", grn_name, "</b>", " (", grn_num, ", GRN rec: ", grn_recorded, ")"),
+                                 paste0(grn_name, " (", grn_num, ", GRN rec: ", grn_recorded, ")"))) %>%
     group_by(`Language Code`) %>%
-    summarise(`GRN Numbers` = str_c(grn_name, collapse = "<br>"))
+    summarise(`GRN Numbers` = str_c(grn_summary, collapse = "<br>"))
 
   main_rows <- main_rows |>
-    left_join(grn_data, multiple = "first") |>
+    left_join(grn_summary_data, multiple = "first") |>
     left_join(grn_summaries, multiple = "first")
 
   main_rows <-  main_rows |>
@@ -1496,8 +1544,20 @@ server <- function(input, output, session) {
   ROLV_rows <- get_df_feather("rolv_varieties") |>
     select(-etl_timestamp)
 
+  print(names(ROLV_rows))
 
-  rm(data_list)
+  rolv_summaries <- ROLV_rows %>%
+    group_by(`Language Code`) %>%
+    reframe(variety_name = str_c(`Variety Name (ROLV)`),
+            variety_code = str_c(`Variety Code (ROLV)`)) |>
+    mutate(rolv_summary = paste0(variety_name, " (", variety_code, ")")) %>%
+    group_by(`Language Code`) %>%
+    summarise(`Varieties (ROLV)` = str_c(rolv_summary, collapse = "<br>"))
+
+  main_rows <- main_rows |>
+    left_join(rolv_summaries, multiple = 'first')
+
+  # rm(data_list)
 
   # *** load user configs ***
 
@@ -7002,7 +7062,24 @@ server <- function(input, output, session) {
                          {
                            data <- nested_tables_df |>
                              filter(id == "GRN") %>%
-                             unnest(cols = c(data))
+                             unnest(cols = c(data)) |>
+                             rename(`Parent Number` = `Parent Number (GRN)`,
+                                    `Recorded` = `Recorded (GRN)`,
+                                    `Unverified` = `Unverified (GRN)`,
+                                    `Program Length` = `Program Lengh (GRN)`) |>
+                             select(`ISO Name (GRN)`,
+                                    `Language Code`,
+                                    `GRN Name`,
+                                    `GRN Number`,
+                                    `Parent Number`,
+                                    `Other Name (GRN)`,
+                                    `Country Code (GRN)`,
+                                    `Recorded`,
+                                    `Unverified`,
+                                    `Program Length`,
+                                    `Last Update (GRN)`) |>
+                             arrange(`ISO Name (GRN)`)
+
                            rowCount = nested_tables_df %>% filter(id == "GRN") %>% pull(nrows)
                            if(rowCount != 0) {
                              get_DT_details_obj(data)
