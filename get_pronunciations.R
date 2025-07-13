@@ -2,15 +2,15 @@
 # Converts language names to phonetic spelling for American English speakers
 # Supports different regional pronunciation patterns
 
-generate_pronunciation_guide <- function(language_names, region = "oceanic") {
+generate_pronunciation_guide <- function(language_names, region = "Pacific") {
 
   # Validate inputs
   if (!is.character(language_names) || length(language_names) == 0) {
     stop("language_names must be a non-empty character vector")
   }
 
-  region <- tolower(trimws(region))
-  valid_regions <- c("oceanic", "african")
+  # region <- tolower(trimws(region))
+  valid_regions <- c("Pacific", "Africa")
 
   if (!region %in% valid_regions) {
     stop(paste("Region must be one of:", paste(valid_regions, collapse = ", ")))
@@ -29,37 +29,42 @@ generate_pronunciation_guide <- function(language_names, region = "oceanic") {
     }
 
     # Apply regional transformation
-    if (region == "oceanic") {
-      results[i] <- apply_oceanic_rules(name)
-    } else if (region == "african") {
-      results[i] <- apply_african_rules(name)
+    if (region == "Pacific") {
+      results[i] <- apply_Pacific_rules(name)
+    } else if (region == "Africa") {
+      results[i] <- apply_Africa_rules(name)
     }
   }
 
   return(results)
 }
 
-# Oceanic pronunciation rules (original patterns)
-apply_oceanic_rules <- function(name) {
+# Pacific pronunciation rules (corrected sequence)
+apply_Pacific_rules <- function(name) {
   # Convert to lowercase for processing
   name_lower <- tolower(name)
 
-  # Basic vowel transformations for Oceanic
-  name_lower <- gsub("a(?=[^aeiou]|$)", "ah", name_lower, perl = TRUE)
-  name_lower <- gsub("e(?=[^aeiou]|$)", "eh", name_lower, perl = TRUE)
-  name_lower <- gsub("i(?=[^aeiou]|$)", "ee", name_lower, perl = TRUE)
-  name_lower <- gsub("o(?=[^aeiou]|$)", "oh", name_lower, perl = TRUE)
-  name_lower <- gsub("u(?=[^aeiou]|$)", "oo", name_lower, perl = TRUE)
+  # FIRST: Apply syllabification to the original name
+  syllables <- syllabify_Pacific(name_lower)
 
-  # Handle consonant clusters
-  name_lower <- gsub("ng", "ng", name_lower)
-  name_lower <- gsub("ch", "ch", name_lower)
+  # SECOND: Apply vowel transformations to each syllable
+  transformed_syllables <- sapply(syllables, function(syllable) {
+    # Basic vowel transformations for Pacific
+    syllable <- gsub("a(?=[^aeiou]|$)", "ah", syllable, perl = TRUE)
+    syllable <- gsub("e(?=[^aeiou]|$)", "eh", syllable, perl = TRUE)
+    syllable <- gsub("i(?=[^aeiou]|$)", "ee", syllable, perl = TRUE)
+    syllable <- gsub("o(?=[^aeiou]|$)", "oh", syllable, perl = TRUE)
+    syllable <- gsub("u(?=[^aeiou]|$)", "oo", syllable, perl = TRUE)
 
-  # Basic syllabification (simple approach)
-  syllables <- syllabify_oceanic(name_lower)
+    # Handle consonant clusters
+    syllable <- gsub("ng", "ng", syllable)
+    syllable <- gsub("ch", "ch", syllable)
 
-  # Apply stress (typically penultimate for Oceanic)
-  stressed_syllables <- apply_oceanic_stress(syllables)
+    return(syllable)
+  })
+
+  # Apply stress (typically penultimate for Pacific)
+  stressed_syllables <- apply_Pacific_stress(transformed_syllables)
 
   # Join with hyphens
   result <- paste(stressed_syllables, collapse = "-")
@@ -67,44 +72,49 @@ apply_oceanic_rules <- function(name) {
   return(result)
 }
 
-# African pronunciation rules (based on analysis)
-apply_african_rules <- function(name) {
+# Africa pronunciation rules (corrected sequence)
+apply_Africa_rules <- function(name) {
   # Convert to lowercase for processing
   name_lower <- tolower(name)
 
-  # African-specific vowel transformations (more lengthening)
-  name_lower <- gsub("a", "ah", name_lower)
-  name_lower <- gsub("e", "ee", name_lower)
-  name_lower <- gsub("i", "ee", name_lower)
-  name_lower <- gsub("o", "oh", name_lower)
-  name_lower <- gsub("u", "oo", name_lower)
+  # FIRST: Apply syllabification to the original name
+  syllables <- syllabify_Africa(name_lower)
 
-  # Handle double vowels (prevent double transformation)
-  name_lower <- gsub("ahah", "ah", name_lower)
-  name_lower <- gsub("eeee", "ee", name_lower)
-  name_lower <- gsub("ohoh", "oh", name_lower)
-  name_lower <- gsub("oooo", "oo", name_lower)
+  # SECOND: Apply transformations to each syllable
+  transformed_syllables <- sapply(syllables, function(syllable) {
+    # Africa-specific vowel transformations (more lengthening)
+    syllable <- gsub("a", "ah", syllable)
+    syllable <- gsub("e", "ee", syllable)
+    syllable <- gsub("i", "ee", syllable)
+    syllable <- gsub("o", "oh", syllable)
+    syllable <- gsub("u", "oo", syllable)
 
-  # African consonant emphasis
-  name_lower <- gsub("^j", "jee", name_lower)
-  name_lower <- gsub("^k", "kah", name_lower)
-  name_lower <- gsub("^g", "gee", name_lower)
+    # Handle double vowels (prevent double transformation)
+    syllable <- gsub("ahah", "ah", syllable)
+    syllable <- gsub("eeee", "ee", syllable)
+    syllable <- gsub("ohoh", "oh", syllable)
+    syllable <- gsub("oooo", "oo", syllable)
 
-  # Handle nasal consonant clusters (African characteristic)
-  name_lower <- gsub("mb", "mm-b", name_lower)
-  name_lower <- gsub("ng", "n-g", name_lower)
-  name_lower <- gsub("nw", "n-w", name_lower)
-  name_lower <- gsub("kw", "k-w", name_lower)
-  name_lower <- gsub("gw", "g-w", name_lower)
+    # Africa consonant emphasis
+    syllable <- gsub("^j", "jee", syllable)
+    syllable <- gsub("^k", "kah", syllable)
+    syllable <- gsub("^g", "gee", syllable)
 
-  # Handle consonant clusters at syllable boundaries
-  name_lower <- gsub("([bcdfghjklmnpqrstvwxyz])([bcdfghjklmnpqrstvwxyz])", "\\1-\\2", name_lower, perl = TRUE)
+    # Handle nasal consonant clusters (Africa characteristic)
+    syllable <- gsub("mb", "mm-b", syllable)
+    syllable <- gsub("ng", "n-g", syllable)
+    syllable <- gsub("nw", "n-w", syllable)
+    syllable <- gsub("kw", "k-w", syllable)
+    syllable <- gsub("gw", "g-w", syllable)
 
-  # Basic syllabification for African languages
-  syllables <- syllabify_african(name_lower)
+    # Handle consonant clusters at syllable boundaries
+    syllable <- gsub("([bcdfghjklmnpqrstvwxyz])([bcdfghjklmnpqrstvwxyz])", "\\1-\\2", syllable, perl = TRUE)
 
-  # Apply stress (predominantly initial for African)
-  stressed_syllables <- apply_african_stress(syllables)
+    return(syllable)
+  })
+
+  # Apply stress (predominantly initial for Africa)
+  stressed_syllables <- apply_Africa_stress(transformed_syllables)
 
   # Join with hyphens
   result <- paste(stressed_syllables, collapse = "-")
@@ -115,8 +125,8 @@ apply_african_rules <- function(name) {
   return(result)
 }
 
-# Oceanic syllabification
-syllabify_oceanic <- function(name) {
+# Pacific syllabification
+syllabify_Pacific <- function(name) {
   # Simple syllabification - split on likely syllable boundaries
   # This is a simplified approach - real syllabification is more complex
 
@@ -140,12 +150,9 @@ syllabify_oceanic <- function(name) {
   return(parts)
 }
 
-# African syllabification
-syllabify_african <- function(name) {
-  # More complex syllabification reflecting African language patterns
-
-  # Handle pre-split consonant clusters
-  name <- gsub("-", "|", name)  # Mark existing breaks
+# Africa syllabification
+syllabify_Africa <- function(name) {
+  # More complex syllabification reflecting Africa language patterns
 
   # Split on vowel-consonant-vowel patterns
   parts <- strsplit(name, "(?<=[aeiou])(?=[^aeiou][aeiou])", perl = TRUE)[[1]]
@@ -155,15 +162,12 @@ syllabify_african <- function(name) {
     parts <- strsplit(name, "(?<=[aeiou])(?=[^aeiou]{2,})", perl = TRUE)[[1]]
   }
 
-  # Handle special African patterns
+  # Handle special Africa patterns
   if (length(parts) == 1 && nchar(name) > 3) {
     # Split on likely syllable boundaries
     mid <- ceiling(nchar(name) / 2)
     parts <- c(substr(name, 1, mid), substr(name, mid + 1, nchar(name)))
   }
-
-  # Restore cluster breaks
-  parts <- unlist(strsplit(parts, "\\|"))
 
   # Clean empty parts
   parts <- parts[nchar(parts) > 0]
@@ -171,8 +175,8 @@ syllabify_african <- function(name) {
   return(parts)
 }
 
-# Apply Oceanic stress patterns (typically penultimate)
-apply_oceanic_stress <- function(syllables) {
+# Apply Pacific stress patterns (typically penultimate)
+apply_Pacific_stress <- function(syllables) {
   if (length(syllables) == 0) return(syllables)
 
   # Stress penultimate syllable (second to last)
@@ -183,11 +187,11 @@ apply_oceanic_stress <- function(syllables) {
   return(syllables)
 }
 
-# Apply African stress patterns (predominantly initial)
-apply_african_stress <- function(syllables) {
+# Apply Africa stress patterns (predominantly initial)
+apply_Africa_stress <- function(syllables) {
   if (length(syllables) == 0) return(syllables)
 
-  # African languages typically have initial stress
+  # Africa languages typically have initial stress
   # Based on analysis: 25/39 words have stress on syllable 1
 
   # Primary stress on first syllable
@@ -204,30 +208,30 @@ apply_african_stress <- function(syllables) {
 }
 
 # Convenience functions for specific regions
-oceanic_pronunciation <- function(language_names) {
-  return(generate_pronunciation_guide(language_names, region = "oceanic"))
+Pacific_pronunciation <- function(language_names) {
+  return(generate_pronunciation_guide(language_names, region = "Pacific"))
 }
 
-african_pronunciation <- function(language_names) {
-  return(generate_pronunciation_guide(language_names, region = "african"))
+Africa_pronunciation <- function(language_names) {
+  return(generate_pronunciation_guide(language_names, region = "Africa"))
 }
 
 # Example usage and testing
 if (FALSE) {
-  # Test with Oceanic names
-  oceanic_names <- c("Fijian", "Samoan", "Tongan", "Kiribati")
-  oceanic_results <- generate_pronunciation_guide(oceanic_names, "oceanic")
-  print("Oceanic pronunciations:")
-  print(data.frame(Language = oceanic_names, Pronunciation = oceanic_results))
+  # Test with Pacific names
+  Pacific_names <- c("Fijian", "Samoan", "Tongan", "Kiribati")
+  Pacific_results <- generate_pronunciation_guide(Pacific_names, "Pacific")
+  print("Pacific pronunciations:")
+  print(data.frame(Language = Pacific_names, Pronunciation = Pacific_results))
 
-  # Test with African names
-  african_names <- c("Jibana", "Kambe", "Tigania", "Arigidi", "Ulukwumi")
-  african_results <- generate_pronunciation_guide(african_names, "african")
-  print("African pronunciations:")
-  print(data.frame(Language = african_names, Pronunciation = african_results))
+  # Test with Africa names
+  Africa_names <- c("Jibana", "Kambe", "Tigania", "Arigidi", "Ulukwumi")
+  Africa_results <- generate_pronunciation_guide(Africa_names, "Africa")
+  print("Africa pronunciations:")
+  print(data.frame(Language = Africa_names, Pronunciation = Africa_results))
 
   # Compare regions
   test_name <- "Kikuyu"
-  print(paste("Oceanic style:", generate_pronunciation_guide(test_name, "oceanic")))
-  print(paste("African style:", generate_pronunciation_guide(test_name, "african")))
+  print(paste("Pacific style:", generate_pronunciation_guide(test_name, "Pacific")))
+  print(paste("Africa style:", generate_pronunciation_guide(test_name, "Africa")))
 }

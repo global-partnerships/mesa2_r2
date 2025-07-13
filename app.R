@@ -56,6 +56,7 @@ source("get_WIP_rows.R")
 source("get_collections.R")
 source("utils.R")
 source("get_history_functions.R")
+source("get_pronunciations.R")
 # source("update_country_selectors.R")
 
 # config <- config::get()
@@ -152,14 +153,108 @@ get_DT_details_obj <- function(data) {
     }
 }
 
+# get_DT_main_obj <- function(data) {
+#   table_names <- names(data)
+#   title <- "Mesa table export"
+#   top_message <- paste0("For internal use only. Please do not share publicly without permission. ",
+#                         "Data provided by ProgressBible™ on ", today())
+#
+#   data <- data |> arrange_hb_columns()
+#
+#   if("Varieties (ROLV)" %in% table_names) {
+#     data <- data |>
+#       mutate(`Varieties (ROLV)` = as.character(`Varieties (ROLV)`))
+#   }
+#
+#   datatable(
+#     data = data,
+#     caption = "Tip: Use the search box and/or column filters to refine list. Select rows to show details in table below.",
+#     filter = list(position = 'top', clear = TRUE, plain = TRUE),
+#     escape = FALSE,
+#     rownames = FALSE,
+#     width = NULL,
+#     # fillContainer = TRUE,
+#     class = 'display compact',
+#     extensions = c('Buttons'),
+#     # extensions = c('Select', 'Buttons'),
+#     options = list(
+#       scrollY = TRUE,
+#       scrollX = TRUE,
+#       scrollcollapse = TRUE,
+#       dom = 'Blfritip',
+#       rowId = 0,
+#       # columnDefs = list(list(visible = FALSE, targets = 0)),
+#       buttons = list(
+#         list(extend = "copy",
+#              title = NULL,
+#              text = "Copy to clipboard",
+#              messageTop = top_message,
+#              exportOptions = list(
+#                format = list(
+#                  header = DT::JS("function(data, columnIdx) {
+#                    return data.replace('HB - ', '');
+#                  }")
+#                )
+#              )
+#         ),
+#         list(extend = "excel",
+#              title = NULL,
+#              filename = paste0("Mesa export - ", today()),
+#              text = "Export to Excel",
+#              messageTop = top_message,
+#              exportOptions = list(
+#                format = list(
+#                  header = DT::JS("function(data, columnIdx) {
+#                    return data.replace('HB - ', '');
+#                  }")
+#                )
+#              ),
+#              customize = DT::JS("function(xlsx) {
+#                var sheet = xlsx.xl.worksheets['sheet1.xml'];
+#                // Apply styling to header row (second row due to messageTop)
+#                $('row:nth-child(2) c', sheet).attr('s', '50');
+#              }")
+#         )
+#       ),
+#       lengthMenu = list(c(-1, 10, 25, 50), c("All", 10, 25, 50)),
+#       # autoWidth = TRUE,
+#       columnDefs = list(
+#         list(visible = FALSE, targets = c(0, 3)),
+#         list(width = "110px", targets = 1),
+#         list(width = "90px", targets = 2)
+#         # list(width = "10%", targets = c(2, 3)), # Columns that should be relatively narrow
+#         # list(width = "20%", targets = c(4, 5))  # Columns that need more space
+#       ),
+#       columnDefs = list(
+#         list(visible = FALSE, targets = 0),
+#         list(width = "60px", targets = 3, className = "dt-center"),
+#         # Add this to align all headers consistently
+#         list(className = "dt-head-center", targets = "_all")
+#       ),
+#       # Add custom CSS
+#       initComplete = DT::JS("function(settings, json) {
+#         $(this.api().table().header()).css('text-align', 'center');
+#       }")
+#     ),
+#     selection = list(
+#       mode = 'multiple',
+#       selected = NULL,
+#       target = 'row')
+#   ) %>%
+#     { if("1st Language Pop" %in% table_names)
+#       formatCurrency(., columns = "1st Language Pop",
+#                      currency = "",
+#                      digits = 0)
+#       else .
+#     }
+# }
+
 get_DT_main_obj <- function(data) {
   table_names <- names(data)
   title <- "Mesa table export"
   top_message <- paste0("For internal use only. Please do not share publicly without permission. ",
                         "Data provided by ProgressBible™ on ", today())
-
   data <- data |> arrange_hb_columns()
-
   if("Varieties (ROLV)" %in% table_names) {
     data <- data |>
       mutate(`Varieties (ROLV)` = as.character(`Varieties (ROLV)`))
@@ -172,23 +267,27 @@ get_DT_main_obj <- function(data) {
     escape = FALSE,
     rownames = FALSE,
     width = NULL,
-    # fillContainer = TRUE,
     class = 'display compact',
-    extensions = c('Buttons'),
-    # extensions = c('Select', 'Buttons'),
+    selection = "none",
+    extensions = c('Select', 'Buttons'),  # Important: Include Select extension
     options = list(
       scrollY = TRUE,
       scrollX = TRUE,
       scrollcollapse = TRUE,
       dom = 'Blfritip',
       rowId = 0,
-      # columnDefs = list(list(visible = FALSE, targets = 0)),
+      # Configure Select extension
+      select = list(
+        style = 'multi',
+        selector = 'tr'
+      ),
       buttons = list(
         list(extend = "copy",
              title = NULL,
              text = "Copy to clipboard",
              messageTop = top_message,
              exportOptions = list(
+               columns = ':not(:eq(0))',  # Excludes column at index 0
                format = list(
                  header = DT::JS("function(data, columnIdx) {
                    return data.replace('HB - ', '');
@@ -202,6 +301,7 @@ get_DT_main_obj <- function(data) {
              text = "Export to Excel",
              messageTop = top_message,
              exportOptions = list(
+               columns = ':not(:eq(0))',  # Excludes column at index 0
                format = list(
                  header = DT::JS("function(data, columnIdx) {
                    return data.replace('HB - ', '');
@@ -210,35 +310,90 @@ get_DT_main_obj <- function(data) {
              ),
              customize = DT::JS("function(xlsx) {
                var sheet = xlsx.xl.worksheets['sheet1.xml'];
-               // Apply styling to header row (second row due to messageTop)
                $('row:nth-child(2) c', sheet).attr('s', '50');
              }")
+        ),
+        list(extend = "csv",
+             title = NULL,
+             filename = paste0("Mesa export - ", today()),
+             text = "Export to CSV file",
+             messageTop = top_message,
+             exportOptions = list(
+               columns = ':not(:eq(0))',  # Excludes column at index 0
+               format = list(
+                 header = DT::JS("function(data, columnIdx) {
+                 return data.replace('HB - ', '');
+               }")
+               )
+             )
         )
       ),
       lengthMenu = list(c(-1, 10, 25, 50), c("All", 10, 25, 50)),
-      # autoWidth = TRUE,
       columnDefs = list(
-        list(visible = FALSE, targets = c(0, 3)),
-        list(width = "110px", targets = 1),
-        list(width = "90px", targets = 2)
-        # list(width = "10%", targets = c(2, 3)), # Columns that should be relatively narrow
-        # list(width = "20%", targets = c(4, 5))  # Columns that need more space
-      ),
-      columnDefs = list(
-        list(visible = FALSE, targets = 0),
-        list(width = "60px", targets = 3, className = "dt-center"),
-        # Add this to align all headers consistently
+        list(visible = FALSE, targets = c(0,3)),
+        list(width = "100px", targets = 1),
+        list(width = "90px", targets = 2),
         list(className = "dt-head-center", targets = "_all")
       ),
-      # Add custom CSS
-      initComplete = DT::JS("function(settings, json) {
-        $(this.api().table().header()).css('text-align', 'center');
-      }")
-    ),
-    selection = list(
-      mode = 'multiple',
-      selected = NULL,
-      target = 'row')
+      initComplete = DT::JS("
+        function(settings, json) {
+          $(this.api().table().header()).css('text-align', 'center');
+
+          var table = this.api();
+
+          // Create buttons container
+          var buttonContainer = $('<div class=\"selection-buttons\" style=\"margin-bottom: 10px;\"></div>');
+
+          // Select All Filtered button
+          var selectFilteredBtn = $('<button class=\"btn btn-success btn-sm\" style=\"margin-right: 5px;\">Select All Filtered</button>');
+          selectFilteredBtn.on('click', function() {
+            // First deselect all
+            table.rows().deselect();
+            // Then select only filtered/visible rows
+            table.rows({ filter: 'applied' }).select();
+          });
+
+          // Deselect All button
+          var deselectAllBtn = $('<button class=\"btn btn-warning btn-sm\" style=\"margin-right: 5px;\">Deselect All</button>');
+          deselectAllBtn.on('click', function() {
+            table.rows().deselect();
+          });
+
+          // Select All button (all rows, not just filtered)
+          var selectAllBtn = $('<button class=\"btn btn-info btn-sm\">Select All Rows</button>');
+          selectAllBtn.on('click', function() {
+            table.rows().select();
+          });
+
+          // Add buttons to container
+          buttonContainer.append(selectFilteredBtn).append(deselectAllBtn).append(selectAllBtn);
+
+          // Insert buttons before the table
+          $(table.table().container()).before(buttonContainer);
+
+          // Add selection event listeners to update Shiny input
+          table.on('select', function(e, dt, type, indexes) {
+            console.log('Selected rows:', indexes);
+            // Get all currently selected rows
+            var selectedRows = table.rows({ selected: true }).indexes().toArray();
+            // Convert to 1-based indexing for R
+            var selectedRowsR = selectedRows.map(function(x) { return x + 1; });
+            // Update Shiny input
+            Shiny.setInputValue('research_table_rows_selected', selectedRowsR);
+          });
+
+          table.on('deselect', function(e, dt, type, indexes) {
+            console.log('Deselected rows:', indexes);
+            // Get all currently selected rows
+            var selectedRows = table.rows({ selected: true }).indexes().toArray();
+            // Convert to 1-based indexing for R
+            var selectedRowsR = selectedRows.map(function(x) { return x + 1; });
+            // Update Shiny input (will be empty array if none selected)
+            Shiny.setInputValue('research_table_rows_selected', selectedRowsR);
+          });
+        }
+      ")
+    )
   ) %>%
     { if("1st Language Pop" %in% table_names)
       formatCurrency(., columns = "1st Language Pop",
@@ -2327,63 +2482,283 @@ server <- function(input, output, session) {
   #   return(language_codes)
   # })
 
+  # main_rows_reactive <- reactive({
+  #   # req(values$stored_fields)
+  #   valid_fields <- field_hierarchy$field_name |> unique()
+  #
+  #   # 2024-08 MJ - added filter to catch deprecated field names previously stored in user cookie, e.g., 'All Access Category'
+  #   fields <- values$stored_fields %>% .[. %in% valid_fields]
+  #   if (is.null(fields)) { # minimum fields are the default_fields
+  #     fields <- default_fields
+  #   }
+  #
+  #   # print("*** str for main_rows$Country @ top of main_rows_reactive ***")
+  #   # str(main_rows$Country)
+  #
+  #   # df <- main_rows %>%
+  #   #   filter(`Language Code` %in% lang_codes()) %>%
+  #   #   droplevels() %>%
+  #   #   select(rowID, Country, `Language Name`, `Language Code`, all_of(fields))
+  #   #   # select(Country, `Language Name`, `Language Code`, all_of(fields), rowID)
+  #
+  #   df <- main_rows %>%
+  #     filter(`Language Code` %in% lang_codes()) %>%
+  #     # select(Country, `Language Name`, `Language Code`, all_of(fields)) %>%
+  #     select(rowID, Country, `Language Name`, `Language Code`, all_of(fields)) %>%
+  #     mutate(across(where(is.factor), droplevels))
+  #
+  #   threshold <- 0.1  # 10% unique values or fewer => convert to factor
+  #
+  #   df <- df %>%
+  #     mutate(
+  #       across(
+  #         where(~ is.character(.x) | is.integer(.x)),
+  #         ~ {
+  #           if (n_distinct(.x) / n() <= threshold) {
+  #             factor(.x, exclude = NULL)
+  #           } else {
+  #             .x
+  #           }
+  #         }
+  #       )
+  #     )
+  #
+  #   # print("*** str for main_rows$Country @ end of main_rows_reactive ***")
+  #   # str(main_rows$Country)
+  #
+  #
+  #   return(df)
+  # })
+
   main_rows_reactive <- reactive({
-    # req(values$stored_fields)
-    valid_fields <- field_hierarchy$field_name |> unique()
+    # Input validation
+    tryCatch({
+      # Validate that main_rows exists and is a data frame
+      if (!exists("main_rows") || !is.data.frame(main_rows) || nrow(main_rows) == 0) {
+        warning("main_rows is not available or empty")
+        return(data.frame())
+      }
 
-    # 2024-08 MJ - added filter to catch deprecated field names previously stored in user cookie, e.g., 'All Access Category'
-    fields <- values$stored_fields %>% .[. %in% valid_fields]
-    if (is.null(fields)) { # minimum fields are the default_fields
-      fields <- default_fields
-    }
+      # Validate that field_hierarchy exists and has required column
+      if (!exists("field_hierarchy") || !is.data.frame(field_hierarchy) ||
+          !"field_name" %in% names(field_hierarchy)) {
+        warning("field_hierarchy is not available or missing field_name column")
+        return(data.frame())
+      }
 
-    # print("*** str for main_rows$Country @ top of main_rows_reactive ***")
-    # str(main_rows$Country)
+      # Get valid fields with error handling
+      valid_fields <- tryCatch({
+        field_hierarchy$field_name |> unique()
+      }, error = function(e) {
+        warning(paste("Error getting valid fields:", e$message))
+        return(character(0))
+      })
 
-    # df <- main_rows %>%
-    #   filter(`Language Code` %in% lang_codes()) %>%
-    #   droplevels() %>%
-    #   select(rowID, Country, `Language Name`, `Language Code`, all_of(fields))
-    #   # select(Country, `Language Name`, `Language Code`, all_of(fields), rowID)
+      if (length(valid_fields) == 0) {
+        warning("No valid fields available")
+        return(data.frame())
+      }
 
-    df <- main_rows %>%
-      filter(`Language Code` %in% lang_codes()) %>%
-      select(rowID, Country, `Language Name`, `Language Code`, all_of(fields)) %>%
-      mutate(across(where(is.factor), droplevels))
+      # Get stored fields with validation
+      stored_fields <- if (exists("values") && !is.null(values$stored_fields)) {
+        values$stored_fields
+      } else {
+        NULL
+      }
 
-    threshold <- 0.1  # 10% unique values or fewer => convert to factor
+      # Filter stored fields to only include valid ones
+      fields <- if (!is.null(stored_fields) && length(stored_fields) > 0) {
+        stored_fields[stored_fields %in% valid_fields]
+      } else {
+        NULL
+      }
 
-    df <- df %>%
-      mutate(
-        across(
-          where(~ is.character(.x) | is.integer(.x)),
-          ~ {
-            if (n_distinct(.x) / n() <= threshold) {
-              factor(.x, exclude = NULL)
-            } else {
-              .x
+      # Use default fields if no valid fields remain
+      if (is.null(fields) || length(fields) == 0) {
+        if (exists("default_fields") && length(default_fields) > 0) {
+          fields <- default_fields
+        } else {
+          warning("No default fields available")
+          return(data.frame())
+        }
+      }
+
+      # Validate that lang_codes() returns valid data
+      lang_codes_result <- tryCatch({
+        lang_codes()
+      }, error = function(e) {
+        warning(paste("Error calling lang_codes():", e$message))
+        return(NULL)
+      })
+
+      if (is.null(lang_codes_result) || length(lang_codes_result) == 0) {
+        warning("lang_codes() returned NULL or empty vector")
+        return(data.frame())
+      }
+
+      # Check if required columns exist in main_rows
+      required_cols <- c("rowID", "Country", "Language Name", "Language Code")
+      missing_cols <- setdiff(required_cols, names(main_rows))
+      if (length(missing_cols) > 0) {
+        warning(paste("Missing required columns:", paste(missing_cols, collapse = ", ")))
+        return(data.frame())
+      }
+
+      # Check if any of the fields exist in main_rows
+      available_fields <- intersect(fields, names(main_rows))
+      if (length(available_fields) == 0) {
+        warning("None of the specified fields exist in main_rows")
+        # Use only the required columns
+        fields <- character(0)
+      } else {
+        fields <- available_fields
+      }
+
+      # Filter and select data
+      df <- main_rows %>%
+        filter(`Language Code` %in% lang_codes_result) %>%
+        select(rowID, Country, `Language Name`, `Language Code`, all_of(fields))
+
+      # Check if filtering resulted in empty dataframe
+      if (nrow(df) == 0) {
+        warning("No rows remaining after filtering by language codes")
+        return(data.frame())
+      }
+
+      # Drop unused factor levels
+      df <- df %>%
+        mutate(across(where(is.factor), droplevels))
+
+      # Apply threshold-based factor conversion with additional safety checks
+      threshold <- 0.1  # 10% unique values or fewer => convert to factor
+
+      df <- df %>%
+        mutate(
+          across(
+            where(~ is.character(.x) | is.integer(.x)),
+            ~ {
+              # Additional safety checks
+              if (length(.x) == 0) {
+                return(.x)
+              }
+
+              # Handle case where all values are NA
+              if (all(is.na(.x))) {
+                return(.x)
+              }
+
+              # Calculate unique proportion safely
+              n_total <- length(.x)
+              n_unique <- n_distinct(.x, na.rm = TRUE)
+
+              if (n_total > 0 && n_unique / n_total <= threshold) {
+                factor(.x, exclude = NULL)
+              } else {
+                .x
+              }
             }
-          }
+          )
         )
-      )
 
-    # print("*** str for main_rows$Country @ end of main_rows_reactive ***")
-    # str(main_rows$Country)
+      # Final validation
+      if (nrow(df) == 0) {
+        warning("Final dataframe is empty")
+        return(data.frame())
+      }
 
+      return(df)
 
-    return(df)
+    }, error = function(e) {
+      # Catch-all error handler
+      warning(paste("Unexpected error in main_rows_reactive:", e$message))
+      return(data.frame())
+    })
   })
 
   # use val_collection_iso_codes to select collection rows in the RT
-  observeEvent(main_rows_reactive(), {
-    iso_codes <- values$val_collection_iso_codes
-    sel_rows <- main_rows_reactive() |>
-      mutate(selected = if_else(`Language Code` %in% iso_codes,TRUE,FALSE)) |>
-      pull(selected) |>
-      which(arr.ind = TRUE)
+  # observeEvent(main_rows_reactive(), {
+  #   iso_codes <- values$val_collection_iso_codes
+  #   sel_rows <- main_rows_reactive() |>
+  #     mutate(selected = if_else(`Language Code` %in% iso_codes,TRUE,FALSE)) |>
+  #     pull(selected) |>
+  #     which(arr.ind = TRUE)
+  #
+  #   RT_proxy |> selectRows(sel_rows)
+  # })
 
-    RT_proxy |> selectRows(sel_rows)
-  })
+  observeEvent(main_rows_reactive(), {
+    tryCatch({
+      # Get the reactive data
+      df <- main_rows_reactive()
+
+      # Validate that we have a valid data frame
+      if (is.null(df) || !is.data.frame(df) || nrow(df) == 0) {
+        # Clear selection if no data
+        if (exists("RT_proxy") && !is.null(RT_proxy)) {
+          RT_proxy |> selectRows(NULL)
+        }
+        return()
+      }
+
+      # Check if required column exists
+      if (!"Language Code" %in% names(df)) {
+        warning("Language Code column not found in main_rows_reactive data")
+        return()
+      }
+
+      # Get ISO codes with validation
+      iso_codes <- if (exists("values") && !is.null(values$val_collection_iso_codes)) {
+        values$val_collection_iso_codes
+      } else {
+        NULL
+      }
+
+      # Handle case where iso_codes is NULL or empty
+      if (is.null(iso_codes) || length(iso_codes) == 0) {
+        # Clear selection if no ISO codes to match
+        if (exists("RT_proxy") && !is.null(RT_proxy)) {
+          RT_proxy |> selectRows(NULL)
+        }
+        return()
+      }
+
+      # Create selection vector with error handling
+      sel_rows <- df |>
+        mutate(
+          selected = if_else(
+            `Language Code` %in% iso_codes & !is.na(`Language Code`),
+            TRUE,
+            FALSE
+          )
+        ) |>
+        pull(selected) |>
+        which()  # Remove arr.ind = TRUE as it's not needed for logical vectors
+
+      # Validate RT_proxy exists and apply selection
+      if (exists("RT_proxy") && !is.null(RT_proxy)) {
+        # Handle case where no rows are selected
+        if (length(sel_rows) == 0) {
+          RT_proxy |> selectRows(NULL)
+        } else {
+          RT_proxy |> selectRows(sel_rows)
+        }
+      } else {
+        warning("RT_proxy is not available")
+      }
+
+    }, error = function(e) {
+      warning(paste("Error in observeEvent for main_rows_reactive:", e$message))
+
+      # Try to clear selection on error
+      if (exists("RT_proxy") && !is.null(RT_proxy)) {
+        tryCatch({
+          RT_proxy |> selectRows(NULL)
+        }, error = function(e2) {
+          warning(paste("Failed to clear selection:", e2$message))
+        })
+      }
+    })
+  }, ignoreInit = TRUE)  # Optional: prevent running on initialization
 
   # *** dashboard page reactive and rendering functions ***
 
@@ -6837,22 +7212,26 @@ server <- function(input, output, session) {
     # req(input$main_page_tabset == "table_builder")
     df <- main_rows_reactive()
     get_DT_main_obj(df)
-  }, server = TRUE)
-  # }, server = FALSE)
+  # }, server = TRUE)
+  }, server = FALSE)
 
   RT_proxy <- dataTableProxy("research_table")
 
   observeEvent(input$research_table_rows_selected, {
     selected_rows <- input$research_table_rows_selected
-    values$val_RT_rows_selected <- selected_rows
-    # RT_proxy |> selectRows(selected_rows)
-    # if (length(values$val_RT_rows_selected) > 0) {
-    #   selected_rows <- values$val_RT_rows_selected
-    # } else {
-    #   selected_rows <- input$research_table_rows_selected
-    #   values$val_RT_rows_selected <- selected_rows
-    # }
-  })
+    if(!is.null(selected_rows) && length(selected_rows) > 0) {
+      cat("Selected rows:", selected_rows, "\n")
+      values$val_RT_rows_selected <- selected_rows
+    } else {
+      cat("No rows selected\n")
+      values$val_RT_rows_selected <- NULL
+    }
+  }, ignoreNULL = FALSE)
+
+  # observeEvent(input$research_table_rows_selected, {
+  #   selected_rows <- input$research_table_rows_selected
+  #   values$val_RT_rows_selected <- selected_rows
+  # })
 
   observe({
     bib_id <- input$clicked_bib_id
@@ -6949,7 +7328,8 @@ server <- function(input, output, session) {
         filter(str_detect(Languages, paste0('(', str_c(details_lang_codes, collapse = "|"),')'))),
       "SP" = filter(SP_rows, `Language Code` %in% details_lang_codes),
       "ROLV" = filter(ROLV_rows, `Language Code` %in% details_lang_codes),
-      "GRN" = filter(grn_rows, `Language Code` %in% details_lang_codes)
+      "GRN" = filter(grn_rows, `Language Code` %in% details_lang_codes),
+      "HB_lang_details" = filter(main_rows, `Language Code` %in% details_lang_codes)
       # ,
       # "Ethnologue" = filter(Ethnologue_rows, `Language Code` %in% details_lang_codes)
     )
@@ -6960,7 +7340,8 @@ server <- function(input, output, session) {
       "shared_collections" = nested_tables_list$shared_collections |> nrow(),
       "SP" = nested_tables_list$SP %>% nrow(),
       "ROLV" = nested_tables_list$ROLV %>% nrow(),
-      "GRN" = nested_tables_list$GRN %>% nrow()
+      "GRN" = nested_tables_list$GRN %>% nrow(),
+      "HB_lang_details" = nested_tables_list$HB_lang_details %>% nrow()
     )
 
     nested_tables_name <- list(
@@ -6969,7 +7350,8 @@ server <- function(input, output, session) {
       "shared_collections" = "Shared Language Collections",
       "SP" = "Scripture Products",
       "ROLV" = "Registry of Language Varieties",
-      "GRN" = "Gospel Recordings Network Listings"
+      "GRN" = "Gospel Recordings Network Listings",
+      "HB_lang_details" = "HB Language Details (for export)"
     )
 
     nested_tables_df <- tibble(
@@ -7081,6 +7463,34 @@ server <- function(input, output, session) {
                              arrange(`ISO Name (GRN)`)
 
                            rowCount = nested_tables_df %>% filter(id == "GRN") %>% pull(nrows)
+                           if(rowCount != 0) {
+                             get_DT_details_obj(data)
+                           } else {
+                             "No data"
+                           }
+                         }
+                ),
+                tabPanel(value = "HB_lang_details",
+                         title = paste("HB Language Details (for export) (", nested_tables_nrows$HB_lang_details, ")"),
+                         {
+                           data <- nested_tables_df |>
+                             filter(id == "HB_lang_details") %>%
+                             unnest(cols = c(data)) |>
+                             select(`HB - Language`,
+                                    `HB - Pronunciation Guide`,
+                                    `HB - Population`,
+                                    `HB - First Scripture?`,
+                                    `HB - All Access Goal?`,
+                                    `HB - Language Vitality`) |>
+                             rename(Language = `HB - Language`,
+                                    `Pronunciation Guide` = `HB - Pronunciation Guide`,
+                                    `Population` = `HB - Population`,
+                                    `First Scripture?` = `HB - First Scripture?`,
+                                    `All Access Goal?` = `HB - All Access Goal?`,
+                                    `Language Vitality` = `HB - Language Vitality`) |>
+                             arrange(`Language`)
+
+                           rowCount = nested_tables_df %>% filter(id == "HB_lang_details") %>% pull(nrows)
                            if(rowCount != 0) {
                              get_DT_details_obj(data)
                            } else {

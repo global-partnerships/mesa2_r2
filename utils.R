@@ -94,6 +94,7 @@ main_rows_transformations <- function(df, combined_partner_areas, grn_recorded) 
       `All Access Goal` == 'Two Bibles' ~ 2378,
       TRUE ~ 0
     )) |>
+    mutate(`Alternate Names` = gsub("; ", "<br>", `Alternate Names`)) |>
     # mutate(`DSI Eligibility` = if_else(`Language Code` %in% dsi_langs$`Language Code` &
     #                                    `Country Code` %in% dsi_langs$`Country Code`, 'Yes', 'No') |>
     #          as_factor()) |>
@@ -101,7 +102,11 @@ main_rows_transformations <- function(df, combined_partner_areas, grn_recorded) 
                                               0, `AAG chapters`)) |>
     mutate('AAG pct chapters remaining' = ifelse(`AAG chapters` == `AAG chapters remaining`, 1, 0)) |>
     mutate(`HB - Language` = str_trim(str_extract(`Language Name`, "^[^\\[]+"))) |>
-    mutate(`HB - Pronunciation Guide` = "<insert here>") |>
+    mutate(`HB - Pronunciation Guide` = if_else(
+      Continent == "Pacific",
+      generate_pronunciation_guide(`HB - Language`, "Pacific"),
+      generate_pronunciation_guide(`HB - Language`, "Africa")
+    )) |>
     mutate(`HB - Population` = `1st Language Pop`) |>
     # mutate(`HB - First Scripture?` =
     #          if_else(trimws(`Recorded (GRN)`) == 'Yes',
