@@ -57,6 +57,7 @@ source("get_collections.R")
 source("utils.R")
 source("get_history_functions.R")
 source("get_pronunciations.R")
+source("get_lang_list_by_grn.R")
 # source("update_country_selectors.R")
 
 # config <- config::get()
@@ -78,7 +79,8 @@ source("get_pronunciations.R")
 
 # **************** global variables ****************
 
-version <- "1.0.17"
+version <- "1.0.18"
+# version <- "1.0.17"
 # version <- "1.0.16"
 # version <- "1.0.15"
 # version <- "1.0.14"
@@ -496,8 +498,9 @@ ui <-
     # skin = "purple",
     # skin = "green",
     # skin = "blue",
-    skin = "yellow",
-    #
+    # skin = "yellow",
+    # skin = "red",
+    skin = "black",
     title = paste0("Mesa ", version),
 
     # Application title
@@ -1699,7 +1702,9 @@ server <- function(input, output, session) {
   ROLV_rows <- get_df_feather("rolv_varieties") |>
     select(-etl_timestamp)
 
-  print(names(ROLV_rows))
+  # print(names(ROLV_rows))
+
+  DBI::dbDisconnect(mesa_sql_con)
 
   rolv_summaries <- ROLV_rows %>%
     group_by(`Language Code`) %>%
@@ -3538,7 +3543,6 @@ server <- function(input, output, session) {
         db_plot_y <- y_list[[db_plot_EventData[[4]]]]
         db_plot_fill <- fill_list[[db_plot_EventData[[1]]+1]]
       }
-      values$curr_db_lang_names <- table$`Language Name`
 
     } else if (input$selected_db_view == "Engagements") {
       if (switch_cats == 0) {
@@ -6265,6 +6269,7 @@ server <- function(input, output, session) {
     values$curr_db_plot_df <- prepare_data(df, dashboard, switch_cats)
 
     # print(p_plot$x$source)
+    plotly::event_register(p_plot, 'plotly_click')
 
     p_plot
 
@@ -7288,6 +7293,9 @@ server <- function(input, output, session) {
   # returns lang_code(s) for given indices
   selected_lang_codes <- reactive({
     rows_selected <- values$val_RT_rows_selected
+
+    # print(paste0("rows_selected: ", rows_selected))
+
     # rows_selected <- input$research_table_rows_selected
     # main_df <- main_rows_reactive()
     main_df <- isolate(main_rows_reactive())
@@ -7309,17 +7317,7 @@ server <- function(input, output, session) {
       "none"
     }
 
-    # details_lang_codes <- if (!is.null(rows_selected)) {
-    #   main_df %>%
-    #     slice(rows_selected) %>%
-    #     pull(`Language Code`)
-    # } else {
-    #   "none"
-    # }
-
-    # details_lang_codes <- main_df %>%
-    #   slice(rows_selected) %>%
-    #   pull(`Language Code`)
+    # print(paste0("details_lang_codes: ", details_lang_codes))
 
     nested_tables_list <- list(
       "WIP" = filter(WIP_rows, `Language Code` %in% details_lang_codes),
@@ -7364,7 +7362,8 @@ server <- function(input, output, session) {
 
     tabsetPanel(id = "RT_details",
                 type = "pills",
-                selected = "WIP",
+                selected = "HB_lang_details",
+                # selected = "WIP",
                 tabPanel(value = "WIP",
                          title = paste("Work In Progress (", nested_tables_nrows$WIP, ")"),
                          {
@@ -7471,7 +7470,8 @@ server <- function(input, output, session) {
                          }
                 ),
                 tabPanel(value = "HB_lang_details",
-                         title = paste("HB Language Details (for export) (", nested_tables_nrows$HB_lang_details, ")"),
+                         title = paste("HB Language Details (for export)"),
+                         # title = paste("HB Language Details (for export) (", nested_tables_nrows$HB_lang_details, ")"),
                          {
                            data <- nested_tables_df |>
                              filter(id == "HB_lang_details") %>%
@@ -7481,16 +7481,26 @@ server <- function(input, output, session) {
                                     `HB - Population`,
                                     `HB - First Scripture?`,
                                     `HB - All Access Goal?`,
-                                    `HB - Language Vitality`) |>
+                                    `HB - Language Vitality`,
+                                    `GRN Numbers`,
+                                    `Language Name`,
+                                    `Varieties (ROLV)`) |>
                              rename(Language = `HB - Language`,
                                     `Pronunciation Guide` = `HB - Pronunciation Guide`,
                                     `Population` = `HB - Population`,
                                     `First Scripture?` = `HB - First Scripture?`,
                                     `All Access Goal?` = `HB - All Access Goal?`,
-                                    `Language Vitality` = `HB - Language Vitality`) |>
-                             arrange(`Language`)
+                                    `Language Vitality` = `HB - Language Vitality`,
+                                    `Language Name (ISO)` = `Language Name`) |>
+                             arrange(`Language Name (ISO)`)
+
+                           # print("str for data")
+                           # str(data)
+
+                           data <- data |> expand_grn_numbers()
 
                            rowCount = nested_tables_df %>% filter(id == "HB_lang_details") %>% pull(nrows)
+
                            if(rowCount != 0) {
                              get_DT_details_obj(data)
                            } else {
