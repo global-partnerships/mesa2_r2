@@ -33,7 +33,8 @@ get_WIP_rows <- function(rows, user_info) {
 
 
   df <- df |>
-    arrange(`Country Code`, `Language Code`)
+    arrange(`Country Code`, `Language Code`) |>
+    factorize_factorables()
 
   return(df)
 }

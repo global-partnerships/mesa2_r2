@@ -75,6 +75,9 @@ main_rows_transformations <- function(df, combined_partner_areas, grn_recorded) 
     )
 
   out <- df |>
+    mutate(`Chapters Remaining` = if_else(`Chapter Goal` - `Chapters To Goal` > 0,
+                                          `Chapter Goal` - `Chapters To Goal`,
+                                          0)) |>
     mutate(`Is Sign Language` = factor(`Is Sign Language`, levels = c("Yes", "No"))) %>%
     mutate(`Is Remaining V2025 Need` = factor(`Is Remaining V2025 Need`, levels = c("Yes", "No"))) %>%
     mutate(`On All Access List` = factor(`On All Access List`, levels = c("Yes", "No"))) %>%
@@ -158,6 +161,8 @@ main_rows_transformations <- function(df, combined_partner_areas, grn_recorded) 
     #                  "Not on All Access Goal List",
     #                  `HB - All Access Goal?`)) |>
     mutate(`HB - Language Vitality` = `Language Vitality`)
+  # |>
+  #   mutate(`HB - Pseudonym` = generate_pseudonym(`Language Name`, Region))
 
   out2 <- out |>
     fix_names()
@@ -199,3 +204,32 @@ remove_hb_prefix <- function(df) {
   return(df)
 }
 
+factorize_factorables <- function(df, threshold = 0.1) {
+  df <- df %>%
+    mutate(
+      across(
+        where(~ is.character(.x) | is.integer(.x)),
+        ~ {
+          # Additional safety checks
+          if (length(.x) == 0) {
+            return(.x)
+          }
+
+          # Handle case where all values are NA
+          if (all(is.na(.x))) {
+            return(.x)
+          }
+
+          # Calculate unique proportion safely
+          n_total <- length(.x)
+          n_unique <- n_distinct(.x, na.rm = TRUE)
+
+          if (n_total > 0 && n_unique / n_total <= threshold) {
+            factor(.x, exclude = NULL)
+          } else {
+            .x
+          }
+        }
+      )
+    )
+}

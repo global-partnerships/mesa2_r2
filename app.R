@@ -58,6 +58,8 @@ source("utils.R")
 source("get_history_functions.R")
 source("get_pronunciations.R")
 source("get_lang_list_by_grn.R")
+source("get_varients.R")
+source("get_pseudonym.R")
 # source("update_country_selectors.R")
 
 # config <- config::get()
@@ -115,45 +117,124 @@ csvDownloadButton <- function(id, filename = "data.csv", label = "Download as CS
   )
 }
 
-get_DT_details_obj <- function(data) {
+# get_DT_details_obj <- function(data, col_shading_scheme = "none") {
+#   table_names <- names(data)
+#   dt <- datatable(
+#     data = data,
+#     caption = "Tip: Select rows in main table above to display details.",
+#     filter = list(position = 'top', clear = TRUE, plain = TRUE),
+#     escape = FALSE,
+#     rownames = FALSE,
+#     width = NULL,
+#     class = 'display compact',
+#     extensions = c('Buttons', 'ColReorder'),
+#     options = list(
+#       scrollY = TRUE,
+#       scrollX = TRUE,
+#       scrollcollapse = TRUE,
+#       dom = 'Blfrtip',
+#       buttons = list('copy', 'print',
+#                      list(extend = 'collection',
+#                           buttons = c('csv', 'excel', 'pdf'),
+#                           text = 'Download')
+#       ),
+#       lengthMenu = list(c(-1, 10, 25, 50), c("All", 10, 25, 50)),
+#       colReorder = TRUE
+#     )
+#   ) %>%
+#     { if("1st Language Pop" %in% table_names)
+#       formatCurrency(., columns = "1st Language Pop",
+#                      currency = "",
+#                      digits = 0)
+#       else .
+#     }
+#
+#   # Apply conditional shading using case_when logic
+#   dt <- if(col_shading_scheme == "hb_export_table") {
+#       dt %>%
+#         formatStyle(columns = 3, backgroundColor = "#C5F1C9") %>%           # 3rd column
+#         formatStyle(columns = 4:6, backgroundColor = "#e6f3ff") %>%         # 4th-6th columns
+#         formatStyle(columns = 7:11, backgroundColor = "#fff2e6")            # 7th-11th columns
+#     } else {
+#       dt
+#     }
+#
+#   return(dt)
+# }
+
+get_DT_details_obj <- function(data, col_shading_scheme = "none") {
+
   table_names <- names(data)
-  datatable(
+
+  dt <- datatable(
     data = data,
     caption = "Tip: Select rows in main table above to display details.",
     filter = list(position = 'top', clear = TRUE, plain = TRUE),
     escape = FALSE,
     rownames = FALSE,
     width = NULL,
-    # fillContainer = TRUE,
     class = 'display compact',
-    # selection = list(mode = "single", target = "cell"),
     extensions = c('Buttons', 'ColReorder'),
     options = list(
-                   scrollY = TRUE,
-                   scrollX = TRUE,
-                   scrollcollapse = TRUE,
-
-                   # scrollY = '80vh',
-                   # # scrollX = 'true',
-                   # scrollX = 'false',
-                   # scrollcollapse = FALSE,
-                   dom = 'Blfrtip',
-                   buttons = list('copy', 'print',
-                                  list(extend = 'collection',
-                                       buttons = c('csv', 'excel', 'pdf'),
-                                       text = 'Download')
-                   ),
-                   lengthMenu = list(c(-1, 10, 25, 50), c("All", 10, 25, 50)),
-                   colReorder = TRUE
-            )
+      scrollY = TRUE,
+      scrollX = TRUE,
+      scrollcollapse = TRUE,
+      dom = 'Blfrtip',
+      buttons = list(
+        'copy', 'print',
+        list(extend = 'collection',
+             buttons = list(
+               'csv',
+               'excel',
+               'pdf'
+             ),
+             text = 'Download')
+      ),
+      lengthMenu = list(c(-1, 10, 25, 50), c("All", 10, 25, 50)),
+      colReorder = TRUE
+    )
   ) %>%
     { if("1st Language Pop" %in% table_names)
-        formatCurrency(., columns = "1st Language Pop",
-                       currency = "",
-                       digits = 0)
+      formatCurrency(., columns = "1st Language Pop",
+                     currency = "",
+                     digits = 0)
       else .
     }
+
+  # Apply conditional shading using if-else
+  if (col_shading_scheme == "hb_export_table") {
+    dt <- dt %>%
+      formatStyle(columns = 3, backgroundColor = "#C5F1C9") %>%
+      formatStyle(columns = 4:6, backgroundColor = "#e6f3ff") %>%
+      formatStyle(columns = 7:11, backgroundColor = "#fff2e6")
+  }
+
+  return(dt)
 }
+
+# Separate function for formatted Excel export
+export_formatted_excel <- function(data, col_shading_scheme = "none", filename = "formatted_export.xlsx") {
+  wb <- createWorkbook()
+  addWorksheet(wb, "Data")
+  writeData(wb, "Data", data, startRow = 1, startCol = 1)
+
+  if (col_shading_scheme == "hb_export_table") {
+    # Create styles
+    style_col3 <- createStyle(fgFill = "#C5F1C9")
+    style_col46 <- createStyle(fgFill = "#e6f3ff")
+    style_col711 <- createStyle(fgFill = "#fff2e6")
+
+    # Apply styles (including header row)
+    addStyle(wb, "Data", style_col3, rows = 1:(nrow(data)+1), cols = 3, gridExpand = TRUE)
+    addStyle(wb, "Data", style_col46, rows = 1:(nrow(data)+1), cols = 4:6, gridExpand = TRUE)
+    addStyle(wb, "Data", style_col711, rows = 1:(nrow(data)+1), cols = 7:11, gridExpand = TRUE)
+  }
+
+  saveWorkbook(wb, filename, overwrite = TRUE)
+  message("Formatted Excel file saved as: ", filename)
+}
+
+
 
 # get_DT_main_obj <- function(data) {
 #   table_names <- names(data)
@@ -882,6 +963,7 @@ ui <-
                       width = 12,
                       title = "Detail Tables",
                       # uiOutput("RT_details", class = "research_table", server = FALSE),
+                      downloadLink("download_formatted_excel", "", style = "display: none;"),
                       uiOutput("RT_details", server = TRUE),
                       # uiOutput("RT_details", class = "research_table", server = TRUE),
                       hr(),
@@ -2632,38 +2714,39 @@ server <- function(input, output, session) {
 
       # Drop unused factor levels
       df <- df %>%
-        mutate(across(where(is.factor), droplevels))
+        mutate(across(where(is.factor), droplevels)) |>
+        factorize_factorables()
 
       # Apply threshold-based factor conversion with additional safety checks
-      threshold <- 0.1  # 10% unique values or fewer => convert to factor
-
-      df <- df %>%
-        mutate(
-          across(
-            where(~ is.character(.x) | is.integer(.x)),
-            ~ {
-              # Additional safety checks
-              if (length(.x) == 0) {
-                return(.x)
-              }
-
-              # Handle case where all values are NA
-              if (all(is.na(.x))) {
-                return(.x)
-              }
-
-              # Calculate unique proportion safely
-              n_total <- length(.x)
-              n_unique <- n_distinct(.x, na.rm = TRUE)
-
-              if (n_total > 0 && n_unique / n_total <= threshold) {
-                factor(.x, exclude = NULL)
-              } else {
-                .x
-              }
-            }
-          )
-        )
+      # threshold <- 0.1  # 10% unique values or fewer => convert to factor
+      #
+      # df <- df %>%
+      #   mutate(
+      #     across(
+      #       where(~ is.character(.x) | is.integer(.x)),
+      #       ~ {
+      #         # Additional safety checks
+      #         if (length(.x) == 0) {
+      #           return(.x)
+      #         }
+      #
+      #         # Handle case where all values are NA
+      #         if (all(is.na(.x))) {
+      #           return(.x)
+      #         }
+      #
+      #         # Calculate unique proportion safely
+      #         n_total <- length(.x)
+      #         n_unique <- n_distinct(.x, na.rm = TRUE)
+      #
+      #         if (n_total > 0 && n_unique / n_total <= threshold) {
+      #           factor(.x, exclude = NULL)
+      #         } else {
+      #           .x
+      #         }
+      #       }
+      #     )
+      #   )
 
       # Final validation
       if (nrow(df) == 0) {
@@ -7327,10 +7410,10 @@ server <- function(input, output, session) {
       "SP" = filter(SP_rows, `Language Code` %in% details_lang_codes),
       "ROLV" = filter(ROLV_rows, `Language Code` %in% details_lang_codes),
       "GRN" = filter(grn_rows, `Language Code` %in% details_lang_codes),
-      "HB_lang_details" = filter(main_rows, `Language Code` %in% details_lang_codes)
-      # ,
-      # "Ethnologue" = filter(Ethnologue_rows, `Language Code` %in% details_lang_codes)
+      "HB_lang_details" = main_rows |> filter(`Language Code` %in% details_lang_codes)
     )
+
+    # print(names(nested_tables_list$HB_lang_details))
 
     nested_tables_nrows <- list(
       "WIP" = nested_tables_list$WIP %>% nrow(),
@@ -7476,7 +7559,9 @@ server <- function(input, output, session) {
                            data <- nested_tables_df |>
                              filter(id == "HB_lang_details") %>%
                              unnest(cols = c(data)) |>
+                             mutate(Pseudonym = generate_pseudonym(`Language Name`, Region), .after = `Language Name`) |>
                              select(`HB - Language`,
+                                    `Pseudonym`,
                                     `HB - Pronunciation Guide`,
                                     `HB - Population`,
                                     `HB - First Scripture?`,
@@ -7484,13 +7569,15 @@ server <- function(input, output, session) {
                                     `HB - Language Vitality`,
                                     `GRN Numbers`,
                                     `Language Name`,
-                                    `Varieties (ROLV)`) |>
+                                    `Varieties (ROLV)`,
+                                    Region)|>
                              rename(Language = `HB - Language`,
                                     `Pronunciation Guide` = `HB - Pronunciation Guide`,
-                                    `Population` = `HB - Population`,
+                                    `Number of speakers` = `HB - Population`,
+                                    # `Population` = `HB - Population`,
                                     `First Scripture?` = `HB - First Scripture?`,
-                                    `All Access Goal?` = `HB - All Access Goal?`,
-                                    `Language Vitality` = `HB - Language Vitality`,
+                                    `All Access Goals` = `HB - All Access Goal?`,
+                                    `Language Vitality (EGIDS)` = `HB - Language Vitality`,
                                     `Language Name (ISO)` = `Language Name`) |>
                              arrange(`Language Name (ISO)`)
 
@@ -7502,7 +7589,7 @@ server <- function(input, output, session) {
                            rowCount = nested_tables_df %>% filter(id == "HB_lang_details") %>% pull(nrows)
 
                            if(rowCount != 0) {
-                             get_DT_details_obj(data)
+                             hb_details_table <- get_DT_details_obj(data, col_shading_scheme = "hb_export_table")
                            } else {
                              "No data"
                            }

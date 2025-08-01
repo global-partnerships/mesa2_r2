@@ -10,6 +10,7 @@ expand_grn_numbers <- function(data) {
       `GRN Numbers` = character(0),
       `Varieties (ROLV)` = character(0),
       Language = character(0),
+      Pseudonym = character(0),
       `Pronunciation Guide` = character(0),
       Population = character(0),
       `First Scripture?` = character(0),
@@ -29,13 +30,53 @@ expand_grn_numbers <- function(data) {
     # Extract the GRN and ROLV Numbers column
     grn_numbers <- row$`GRN Numbers`
     rolv_numbers <- row$`Varieties (ROLV)`
+
+    # print(paste0("grn_numbers: ", grn_numbers))
+    # print(paste0("rolv_numbers: ", rolv_numbers))
+    # str(grn_numbers)
+    # str(rolv_numbers)
+
+    grn_numbers_only <- if_else(!is.na(grn_numbers),
+                                str_extract_all(grn_numbers, "(?<=\\>)\\d+(?=<\\/)"),
+                                list("none"))
+
+    # print(paste0("grn_numbers_only: ", grn_numbers_only))
+    print("str for grn_numbers_only")
+    str(grn_numbers_only)
+
+    rolv_numbers_only <- if_else(!is.na(rolv_numbers),
+                                 str_extract_all(rolv_numbers, "(?<=\\()\\d+(?=\\))"),
+                                 list("none"))
+
+    # print(paste0("rolv_numbers_only: ", rolv_numbers_only))
+    # print("str for rolv_numbers_only")
+    # str(rolv_numbers_only)
+
+    numbers_only <- c(grn_numbers_only, rolv_numbers_only, recursive = TRUE)
+    numbers_only <- numbers_only[numbers_only != "none"]
+    # numbers_only <- numbers_only[!duplicated(numbers_only)]
+    # numbers_only <- str_c(grn_numbers_only, rolv_numbers_only)
+
+    # print(paste0("numbers_only: ", numbers_only))
+    # print("str for numbers_only")
+    # str(numbers_only)
+
     grn_numbers <- if_else(!is.na(rolv_numbers),
                            str_c(grn_numbers, rolv_numbers, sep = "<br>"),
                            if_else(!is.na(grn_numbers),
                                    grn_numbers,
                                    "none"))
 
+    # numbers_only <- grn_numbers |> str_extract_all("(?<=\\>)\\d*(?=<)")
+
+    # numbers_only <- if_else(grn_numbers != "none",
+    #                         str_extract_all(grn_numbers, "(?<=\\>)\\d*(?=<)"),
+    #                         "none")
+
     # print(paste0("*** grn_numbers: ", grn_numbers))
+
+    iso_code <- row$`Language Name (ISO)` |> str_extract("(?<=\\[)\\w{3}")
+    # print(paste0("*** iso_code: ", iso_code))
 
     if(grn_numbers != "none") {
       # Split by <br> tags instead of closing brackets
@@ -49,27 +90,44 @@ expand_grn_numbers <- function(data) {
       # Clean up entries - remove empty ones and trim whitespace
       grn_entries <- grn_entries[grn_entries != "" & str_trim(grn_entries) != ""]
       grn_entries <- str_trim(grn_entries)
-      grn_entries <- grn_entries |> remove_duplicates_by_id()
+      # grn_entries <- grn_entries |> remove_duplicates_by_id()
+
+      # pseudonyms <- generate_pseudonym(numbers_only, row$Region)
+      pseudonyms <- generate_pseudonym(grn_entries, row$Region)
+      print(paste0("Pseudonyms: ", pseudonyms))
+      # print("str for pseudonyms")
+      # str(pseudonyms)
+
+      # print(length(grn_entries))
 
       # Create a data frame with one row per GRN entry
       expanded_rows <- data.frame(
-        # Country = rep(row$Country, length(grn_entries)),
-        # `Language Name` = rep(row$`Language Name`, length(grn_entries)),
-        # `Language Code` = rep(row$`Language Code`, length(grn_entries)),
         `Language Name (ISO)` = rep(row$`Language Name (ISO)`, length(grn_entries)),
-        # `Language Name` = rep(row$`Language Name`, length(grn_entries)),
         `GRN Numbers` = grn_entries,
         Language = rep(row$Language, length(grn_entries)),
+        Code = rep(iso_code, length(grn_entries)),
+        Pseudonym = pseudonyms,
+        `GRN/ROLV Number` = numbers_only,
         `Pronunciation Guide` = rep(row$`Pronunciation Guide`, length(grn_entries)),
-        Population = rep(row$Population, length(grn_entries)),
+        `Number of speakers` = rep(row$`Number of speakers`, length(grn_entries)),
+        # Population = rep(row$Population, length(grn_entries)),
         `First Scripture?` = rep(row$`First Scripture?`, length(grn_entries)),
-        `All Access Goal?` = rep(row$`All Access Goal?`, length(grn_entries)),
-        `Language Vitality` = rep(row$`Language Vitality`, length(grn_entries)),
+        `All Access Goals` = rep(row$`All Access Goals`, length(grn_entries)),
+        # `All Access Goal?` = rep(row$`All Access Goal?`, length(grn_entries)),
+        `Language Vitality (EGIDS)` = rep(row$`Language Vitality (EGIDS)`, length(grn_entries)),
+        # `Language Vitality` = rep(row$`Language Vitality`, length(grn_entries)),
         stringsAsFactors = FALSE,
         check.names = FALSE)
       } else {
         expanded_rows <- row
       }
+
+    # expanded_rows2 <- as.data.table(expanded_rows)
+
+    expanded_rows <- expanded_rows |>
+      filter(`GRN/ROLV Number` != "none")
+
+    # str(expanded_rows)
 
     return(expanded_rows)
   }
@@ -94,6 +152,7 @@ expand_grn_numbers <- function(data) {
         str_detect(grn_lang_raw, ":") ~ str_trim(str_extract(grn_lang_raw, ":[^:]*$") %>% str_remove("^:"), side = "both"),
         TRUE ~ str_trim(grn_lang_raw, side = "both")
       )) |>
+    # mutate(Pseudonym = generate_pseudonym(Language, row$Region)) |>
     mutate(
       `Pronunciation Guide` = if_else(!str_detect(Language, "Sign Language"),
                                       generate_pronunciation_guide(Language, region = "Pacific"),
@@ -106,6 +165,9 @@ expand_grn_numbers <- function(data) {
     rename(`GRN/ROLV Numbers` = `GRN Numbers`)
     # rename(`Language Name (ISO)` = `Language Name`,
     #        `GRN/ROLV Numbers` = `GRN Numbers`)
+
+  languages_by_grn <- languages_by_grn |>
+    dplyr::distinct(Language, .keep_all = TRUE)
 
   return(languages_by_grn)
 }
