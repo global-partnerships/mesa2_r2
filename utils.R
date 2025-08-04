@@ -21,16 +21,19 @@ aa_hist_transformations <- function(df) {
     # mutate(`Is Sign Language` = factor(`Is Sign Language`, levels = c("Yes", "No"))) %>%
     mutate(`On All Access List` = factor(`On All Access List`, levels = c("Yes", "No"))) %>%
     mutate(`All Access Goal` = as.factor(str_replace_na(.$`All Access Goal`, replacement = "Not available"))) %>%
-    mutate(`AAG chapters` = case_when(
-      `All Access Goal` == '25 Chapters' ~ 25,
-      `All Access Goal` == 'NT / 260 Chapters' ~ 260,
-      `All Access Goal` == 'Bible' ~ 1189,
-      `All Access Goal` == 'Two Bibles' ~ 2378,
-      TRUE ~ 0
-    )) |>
-    mutate(`AAG chapters remaining` = if_else(is.na(`All Access Status`) | str_detect(`All Access Status`, "Goal Met"),
-                                              0, `AAG chapters`)) |>
-    mutate('AAG pct chapters remaining' = ifelse(`AAG chapters` == `AAG chapters remaining`, 1, 0))
+    mutate(`Chapters Remaining` = if_else(`Chapter Goal` - `Chapters To Goal` > 0,
+                                          `Chapter Goal` - `Chapters To Goal`,
+                                          0))
+    # mutate(`AAG chapters` = case_when(
+    #   `All Access Goal` == '25 Chapters' ~ 25,
+    #   `All Access Goal` == 'NT / 260 Chapters' ~ 260,
+    #   `All Access Goal` == 'Bible' ~ 1189,
+    #   `All Access Goal` == 'Two Bibles' ~ 2378,
+    #   TRUE ~ 0
+    # )) |>
+    # mutate(`AAG chapters remaining` = if_else(is.na(`All Access Status`) | str_detect(`All Access Status`, "Goal Met"),
+    #                                           0, `AAG chapters`)) |>
+    # mutate('AAG pct chapters remaining' = ifelse(`AAG chapters` == `AAG chapters remaining`, 1, 0))
 
   return(out)
 }
@@ -90,20 +93,20 @@ main_rows_transformations <- function(df, combined_partner_areas, grn_recorded) 
       Longitude = coalesce(Longitude.x, Longitude.y)
     ) |>
     select(-ends_with(".x"), -ends_with(".y")) |>
-    mutate(`AAG chapters` = case_when(
-      `All Access Goal` == '25 Chapters' ~ 25,
-      `All Access Goal` == 'NT / 260 Chapters' ~ 260,
-      `All Access Goal` == 'Bible' ~ 1189,
-      `All Access Goal` == 'Two Bibles' ~ 2378,
-      TRUE ~ 0
-    )) |>
+    # mutate(`AAG chapters` = case_when(
+    #   `All Access Goal` == '25 Chapters' ~ 25,
+    #   `All Access Goal` == 'NT / 260 Chapters' ~ 260,
+    #   `All Access Goal` == 'Bible' ~ 1189,
+    #   `All Access Goal` == 'Two Bibles' ~ 2378,
+    #   TRUE ~ 0
+    # )) |>
     mutate(`Alternate Names` = gsub("; ", "<br>", `Alternate Names`)) |>
     # mutate(`DSI Eligibility` = if_else(`Language Code` %in% dsi_langs$`Language Code` &
     #                                    `Country Code` %in% dsi_langs$`Country Code`, 'Yes', 'No') |>
     #          as_factor()) |>
-    mutate(`AAG chapters remaining` = if_else(is.na(`All Access Status`) | str_detect(`All Access Status`, "Goal Met"),
-                                              0, `AAG chapters`)) |>
-    mutate('AAG pct chapters remaining' = ifelse(`AAG chapters` == `AAG chapters remaining`, 1, 0)) |>
+    # mutate(`AAG chapters remaining` = if_else(is.na(`All Access Status`) | str_detect(`All Access Status`, "Goal Met"),
+    #                                           0, `AAG chapters`)) |>
+    # mutate('AAG pct chapters remaining' = ifelse(`AAG chapters` == `AAG chapters remaining`, 1, 0)) |>
     mutate(`HB - Language` = str_trim(str_extract(`Language Name`, "^[^\\[]+"))) |>
     mutate(`HB - Pronunciation Guide` = if_else(
       Continent == "Pacific",

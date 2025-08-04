@@ -214,7 +214,8 @@ get_aa_chapters_df <- function(df) {
   setDT(df)
 
   # Perform the aggregation
-  all_access <- df[, .(remaining_chapters = sum(`AAG chapters remaining`)),
+  all_access <- df[, .(remaining_chapters = sum(`Chapters Remaining`)),
+  # all_access <- df[, .(remaining_chapters = sum(`AAG chapters remaining`)),
                    by = .(SnapshotDate, year, month)]
 
   # print("first str for all_access")

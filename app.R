@@ -3140,13 +3140,16 @@ server <- function(input, output, session) {
     df <- df %>%
       select(Area.x, -Area.y, `Country Code`, Country.x, -Country.y, `FIPS Code.x`, -`FIPS Code.y`,
              `joshua_proj_country`, `Language Name`,
-             `All Access Goal`, `AAG chapters`, `AAG chapters remaining`,
+             `All Access Goal`,
+             `Chapter Goal`, `Chapters Remaining`,
+             # `AAG chapters`, `AAG chapters remaining`,
              `All Access Status`, `On All Access List`, `Is Sign Language`) %>%
       rename(Area = Area.x, Country = Country.x, `FIPS Code` = `FIPS Code.x`) %>%
       mutate(aa_listed = as.character(`On All Access List`)) %>%
       select(-`On All Access List`) %>%
       mutate(aa_listed = if_else(is.na(aa_listed), "No", aa_listed)) |>
-      mutate(`AAG chapters` = if_else(is.na(`AAG chapters`), 0, `AAG chapters`)) |>
+      mutate(`Chapter Goal` = if_else(is.na(`Chapter Goal`), 0, `Chapter Goal`)) |>
+      # mutate(`AAG chapters` = if_else(is.na(`AAG chapters`), 0, `AAG chapters`)) |>
       mutate(joshua_proj_country = if_else(is.na(joshua_proj_country),
                                            paste0(
                                              "<a href='https://joshuaproject.net/countries/",
@@ -3164,14 +3167,18 @@ server <- function(input, output, session) {
         `Total unmet goals` = sum(`Unmet goal`),
         `Sign languages` = sum(`Sign language`),
         `Unmet SL goals` = sum(`Unmet sign language goal`),
-        `Total AAG chapters` = sum(`AAG chapters`),
-        `Remaining AAG chapters` = sum(`AAG chapters remaining`),
+        `Total AAG chapters` = sum(`Chapter Goal`),
+        # `Total AAG chapters` = sum(`AAG chapters`),
+        `Remaining AAG chapters` = sum(`Chapters Remaining`),
+        # `Remaining AAG chapters` = sum(`AAG chapters remaining`),
         `% Remaining AAG chapters` = (`Remaining AAG chapters`/`Total AAG chapters`),
         # `% Remaining AAG chapters` = (`Remaining AAG chapters`/`Total AAG chapters`) |>
         #   scales::label_percent(),
         # `% Remaining AAG chapters` = paste0(format((`Remaining AAG chapters`/`Total AAG chapters`)*100, digits = 1),"%"),
-        `Total SL AAG chapters` = sum(if_else(`Is Sign Language`=="Yes", `AAG chapters`, 0)),
-        `Remaining SL AAG chapters reported` = sum(if_else(`Is Sign Language`=="Yes", `AAG chapters remaining`, 0))
+        `Total SL AAG chapters` = sum(if_else(`Is Sign Language`=="Yes", `Chapter Goal`, 0)),
+        # `Total SL AAG chapters` = sum(if_else(`Is Sign Language`=="Yes", `AAG chapters`, 0)),
+        # `Remaining SL AAG chapters reported` = sum(if_else(`Is Sign Language`=="Yes", `AAG chapters remaining`, 0))
+        `Remaining SL AAG chapters reported` = sum(if_else(`Is Sign Language`=="Yes", `Chapters Remaining`, 0))
       ) %>%
       mutate(`All Access goals met` = if_else(`Total unmet goals` == 0, "Yes", "No")) %>%
       mutate(`1 unmet goal` = if_else(`Total unmet goals` == 1, "Yes", "No")) %>%
@@ -5502,8 +5509,20 @@ server <- function(input, output, session) {
         }
         return(x)
       }) %>%
-      dplyr::select(SnapshotDate, month, year, `Country Code`, `Language Code`, `On All Access List`,
-             `All Access Status`, `All Access Goal`, `A A Goal Met`, `Prior A A Status`) |>
+      dplyr::select(
+        SnapshotDate,
+        month,
+        year,
+        `Country Code`,
+        `Language Code`,
+        `On All Access List`,
+        `All Access Status`,
+        `All Access Goal`,
+        `A A Goal Met`,
+        `Prior A A Status`,
+        `Chapter Goal`,
+        `Chapters To Goal`,
+        `Chapters Completed`) |>
       dplyr::collect() |>
       aa_hist_transformations()
 
@@ -5758,7 +5777,11 @@ server <- function(input, output, session) {
       labs(x = "Month",
            y = "Remaining chapters") +
       scale_x_date(date_breaks = "6 months", date_labels = "%b %Y", limits = c(min(graph_data$SnapshotDate), max_date)) +
-      scale_y_continuous(limits = c(0, max(graph_data$remaining_chapters, na.rm = TRUE) * 1.2)) +
+      # scale_y_continuous(limits = c(0, max(graph_data$remaining_chapters, na.rm = TRUE) * 1.2)) +
+      scale_y_continuous(
+        limits = c(0, max(graph_data$remaining_chapters, na.rm = TRUE) * 1.2),
+        labels = scales::comma_format()
+      ) +
       theme(axis.text.x = element_text(angle = 45, hjust = 1),
             plot.margin = unit(c(1, 1, 1, 0.5), "cm"))
 
@@ -6783,22 +6806,22 @@ server <- function(input, output, session) {
       `% Remaining AAG chapters` = colDef(aggregate = "mean",
                                           footer = JS(
                                             "function(cellInfo, state) {
-                                          let total = 0;
-                                          let count = 0;
-                                          state.sortedData.forEach(function(row) {
-                                            if (row[`% Remaining AAG chapters`] !== null) {
-                                              total += row[`% Remaining AAG chapters`];
-                                              count++;
-                                            }
-                                          })
-                                          let mean = count > 0 ? total / count : 0;
-                                          mean = (mean * 100).toFixed(0) + '%';
-                                          return '<b>' + mean + '</b>';
-                                        }"
+                                              let total = 0;
+                                              let count = 0;
+                                              state.sortedData.forEach(function(row) {
+                                                if (row[`% Remaining AAG chapters`] !== null) {
+                                                  total += row[`% Remaining AAG chapters`];
+                                                  count++;
+                                                }
+                                              })
+                                              let mean = count > 0 ? total / count : 0;
+                                              mean = (mean * 100).toFixed(1) + '%';
+                                              return '<b>' + mean + '</b>';
+                                            }"
                                           ),
                                           name = "% chapters remaining",
                                           align = "center",
-                                          format = colFormat(percent = TRUE, digits = 0),
+                                          format = colFormat(percent = TRUE, digits = 1),
                                           na = "--"),
       `Sign languages` = colDef(aggregate = "sum",
                                 footer = JS(
