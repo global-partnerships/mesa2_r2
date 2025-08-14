@@ -221,7 +221,7 @@ if (FALSE) {
   # Test with Pacific names
   Pacific_names <- c("Fijian", "Samoan", "Tongan", "Kiribati")
   Pacific_results <- generate_pronunciation_guide(Pacific_names, "Pacific")
-  print("Pacific pronunciations:")
+  print("Pacific pronunciations: ")
   print(data.frame(Language = Pacific_names, Pronunciation = Pacific_results))
 
   # Test with Africa names

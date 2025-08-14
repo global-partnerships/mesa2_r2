@@ -333,6 +333,9 @@ export_formatted_excel <- function(data, col_shading_scheme = "none", filename =
 # }
 
 get_DT_main_obj <- function(data) {
+  # print("str for data in get_DT_main_obj - 1")
+  # str(data)
+
   table_names <- names(data)
   title <- "Mesa table export"
   top_message <- paste0("For internal use only. Please do not share publicly without permission. ",
@@ -342,6 +345,9 @@ get_DT_main_obj <- function(data) {
     data <- data |>
       mutate(`Varieties (ROLV)` = as.character(`Varieties (ROLV)`))
   }
+
+  # print("str for data in get_DT_main_obj - 2")
+  # str(data)
 
   datatable(
     data = data,
@@ -1387,10 +1393,14 @@ server <- function(input, output, session) {
 
   # ***** data imports from file system ********
 
+  base_path <- "" # use for dev, staging, production
+  print("*** using base_path for production etl output ***")
+  # base_path <- "~/data_projects/mesa_temp/etl_testing/" # use for etl_testing
+  # print("*** using base_path for etl_testing output ***")
+
   # ********* assets upload **************
 
-  assets_path = "data/assets/" # for publication
-  # assets_path = "R/data/assets/" # used for dev only
+  assets_path <- paste0(base_path, "data/assets/") # for publication
 
   # app resources stored R/data/assets
   # pb_tou_doc <- htmltools::htmlTemplate(paste0(assets_path, "progressBibleAgreement_2023-05-04.doc"))
@@ -1509,7 +1519,10 @@ server <- function(input, output, session) {
   # load cached data files
   #################################################################################
 
-  mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), "data/sql_db/mesa.sqlite")
+  sql_db_path <- "data/sql_db/mesa.sqlite"
+  # sql_db_path <- paste0(base_path, "data/sql_db/mesa.sqlite")
+
+  mesa_sql_con <- DBI::dbConnect(RSQLite::SQLite(), sql_db_path)
   tbl_list <- DBI::dbListTables(mesa_sql_con)
 
   # Initialize empty list
@@ -1574,11 +1587,18 @@ server <- function(input, output, session) {
   #   return(df)
   # }
 
+  # **************************************
+  # *** beginning of calls to datasets ***
+  # **************************************
+
+  ds_path <- paste0(base_path, "data/datasets/")
+  print(paste0("ds_path: ", ds_path))
+
   get_all_snapshot_dates <- function(ds_name) {
     # print("@ get_all_snapshot_dates")
     ds_name <- "pb_main_ds"
     # source <- paste0("data_test/datasets/", ds_name)
-    source <- paste0("data/datasets/", ds_name)
+    source <- paste0(ds_path, ds_name)
     # print(paste0("ds source = ", source))
 
     ds <- arrow::open_dataset(source, format = "parquet")
@@ -1596,7 +1616,7 @@ server <- function(input, output, session) {
   get_aa_snapshot_dates <- function(ds_name) {
     # print("@ get_aa_snapshot_dates")
     ds_name <- "pb_main_ds"
-    source <- paste0("data/datasets/", ds_name)
+    source <- paste0(ds_path, ds_name)
     # print(paste0("ds source = ", source))
 
     ds <- arrow::open_dataset(source, format = "parquet")
@@ -1631,7 +1651,7 @@ server <- function(input, output, session) {
     print("Loading 'pb_main_ds' dataset")
     ds_name <- "pb_main_ds"
     # snapshot_date <- filter_SnapshotDate_from()
-    source <- paste0("data/datasets/", ds_name)
+    source <- paste0(ds_path, ds_name)
     max_date <- get_all_snapshot_dates() |> max()
     # print(paste0("max_date = ", max_date))
     ds <- arrow::open_dataset(source, format = "parquet")
@@ -4227,7 +4247,7 @@ server <- function(input, output, session) {
     # last_snapshot <- input$last_snapshot
 
     ds_name <-  "pb_main_ds"
-    source <- paste0("data/datasets/", ds_name)
+    source <- paste0(ds_path, ds_name)
     ds <- arrow::open_dataset(source, format = "parquet")
 
     df <- ds %>%
@@ -5496,7 +5516,7 @@ server <- function(input, output, session) {
     first_snapshot <- input$selected_first_snapshot_aa
     last_snapshot <- input$selected_last_snapshot_aa
 
-    source <- paste0("data/datasets/", ds_name)
+    source <- paste0(ds_path, ds_name)
     ds <- arrow::open_dataset(source, format = "parquet")
 
     df <- ds %>%
@@ -7322,6 +7342,10 @@ server <- function(input, output, session) {
   output$research_table <- renderDT({
     # req(input$main_page_tabset == "table_builder")
     df <- main_rows_reactive()
+
+    # print("str for df in output$research_table")
+    # str(df)
+
     get_DT_main_obj(df)
   # }, server = TRUE)
   }, server = FALSE)

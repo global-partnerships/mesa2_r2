@@ -187,6 +187,20 @@ fix_names <- function(df) {
   return(out)
 }
 
+# arrange_hb_columns <- function(df) {
+#   hb_order <- c("HB - Language",
+#                 "HB - Pronunciation Guide",
+#                 "HB - Population",
+#                 "HB - First Scripture?",
+#                 "HB - All Access Goal?",
+#                 "HB - Language Vitality")
+#
+#   hb_present <- hb_order[hb_order %in% names(df)]
+#   other_cols <- names(df)[!names(df) %in% hb_order]
+#
+#   df[, c(other_cols, hb_present)]
+# }
+
 arrange_hb_columns <- function(df) {
   hb_order <- c("HB - Language",
                 "HB - Pronunciation Guide",
@@ -194,11 +208,9 @@ arrange_hb_columns <- function(df) {
                 "HB - First Scripture?",
                 "HB - All Access Goal?",
                 "HB - Language Vitality")
-
   hb_present <- hb_order[hb_order %in% names(df)]
   other_cols <- names(df)[!names(df) %in% hb_order]
-
-  df[, c(other_cols, hb_present)]
+  df[, .SD, .SDcols = c(other_cols, hb_present)]
 }
 
 remove_hb_prefix <- function(df) {

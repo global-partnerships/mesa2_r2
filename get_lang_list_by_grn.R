@@ -41,8 +41,8 @@ expand_grn_numbers <- function(data) {
                                 list("none"))
 
     # print(paste0("grn_numbers_only: ", grn_numbers_only))
-    print("str for grn_numbers_only")
-    str(grn_numbers_only)
+    # print("str for grn_numbers_only")
+    # str(grn_numbers_only)
 
     rolv_numbers_only <- if_else(!is.na(rolv_numbers),
                                  str_extract_all(rolv_numbers, "(?<=\\()\\d+(?=\\))"),
@@ -94,7 +94,7 @@ expand_grn_numbers <- function(data) {
 
       # pseudonyms <- generate_pseudonym(numbers_only, row$Region)
       pseudonyms <- generate_pseudonym(grn_entries, row$Region)
-      print(paste0("Pseudonyms: ", pseudonyms))
+      # print(paste0("Pseudonyms: ", pseudonyms))
       # print("str for pseudonyms")
       # str(pseudonyms)
 
